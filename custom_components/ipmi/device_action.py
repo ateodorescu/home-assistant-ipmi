@@ -40,7 +40,7 @@ async def async_get_actions(
         USER_AVAILABLE_COMMANDS
     ]
     return [
-        {CONF_TYPE: _get_device_action_name(command_name)} | base_action
+        {CONF_TYPE: command_name} | base_action
         for command_name in user_available_commands
     ]
 
@@ -53,20 +53,12 @@ async def async_call_action_from_config(
 ) -> None:
     """Execute a device action."""
     device_action_name: str = config[CONF_TYPE]
-    command_name = _get_command_name(device_action_name)
     device_id: str = config[CONF_DEVICE_ID]
     entry_id = _get_entry_id_from_device_id(hass, device_id)
     data: PyIpmiData = hass.data[DOMAIN][entry_id][PYIPMI_DATA]
-    await data[command_name]()
-    # await data.async_run_command(hass, command_name)
 
-
-def _get_device_action_name(command_name: str) -> str:
-    return command_name.replace(".", "_")
-
-
-def _get_command_name(device_action_name: str) -> str:
-    return device_action_name.replace("_", ".")
+    command = getattr(data, device_action_name)
+    command()
 
 
 def _get_entry_id_from_device_id(hass: HomeAssistant, device_id: str) -> str | None:

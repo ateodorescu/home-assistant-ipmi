@@ -38,14 +38,3 @@ INTEGRATION_SUPPORTED_COMMANDS = {
     COMMAND_POWER_RESET,
     COMMAND_POWER_SOFT
 }
-
-# IPMI_SUPPORTED_COMMANDS = (
-#         ('SENSOR', 'Sensor Device'),
-#         ('SDR_REPOSITORY', 'SDR Repository Device'),
-#         ('SEL', 'SEL Device'),
-#         ('FRU_INVENTORY', 'FRU Inventory Device'),
-#         ('IPMB_EVENT_RECEIVER', 'IPMB Event Receiver'),
-#         ('IPMB_EVENT_GENERATOR', 'IPMB Event Generator'),
-#         ('BRIDGE', 'Bridge'),
-#         ('CHASSIS', 'Chassis Device')
-# )

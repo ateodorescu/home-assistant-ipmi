@@ -214,17 +214,7 @@ class PyIpmiData:
         self._username = username
         self._password = password
 
-        # Establish client with persistent=False to open/close connection on
-        # each update call.  This is more reliable with async.
-        # self._client = PyNUTClient(self._host, port, username, password, 5, False)
-        # self.ups_list: dict[str, str] | None = None
-        # self._status: dict[str, str] | None = None
         self._device_info: IpmiDeviceInfo | None = None
-
-    # @property
-    # def status(self) -> dict[str, str] | None:
-    #     """Get latest update if throttle allows. Return status."""
-    #     return self._status
 
     @property
     def name(self) -> str:
