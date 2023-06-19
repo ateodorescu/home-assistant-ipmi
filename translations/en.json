@@ -1,0 +1,46 @@
+{
+    "config": {
+        "abort": {
+            "already_configured": "Device is already configured"
+        },
+        "error": {
+            "cannot_connect": "Failed to connect",
+            "unknown": "Unexpected error"
+        },
+        "step": {
+            "user": {
+                "data": {
+                    "alias": "Alias",
+                    "host": "Host",
+                    "password": "Password",
+                    "port": "Port",
+                    "username": "Username"
+                },
+                "title": "Connect to the IPMI server"
+            }
+        }
+    },
+    "device_automation": {
+        "action_type": {
+            "power_on": "Power on",
+            "power_off": "Power off",
+            "power_cycle": "Power cycle",
+            "power_reset": "Power reset",
+            "soft_shutdown": "Soft shutdown"
+        }
+    },
+    "entity": {
+        "switch": {
+            "chassis": "Power on/Soft shutdown"
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "data": {
+                    "scan_interval": "Scan Interval (seconds)"
+                }
+            }
+        }
+    }
+}
