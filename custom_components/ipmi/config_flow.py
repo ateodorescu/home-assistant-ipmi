@@ -67,14 +67,12 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     username = data.get(CONF_USERNAME)
     password = data.get(CONF_PASSWORD)
 
-    nut_data = PyIpmiData(host, port, alias, username, password)
-    await hass.async_add_executor_job(nut_data.update)
-    # if not (status := nut_data.status):
-    #     raise CannotConnect
-    if not (device_info := nut_data._device_info):
+    ipmi_data = PyIpmiData(host, port, alias, username, password)
+    await hass.async_add_executor_job(ipmi_data.update)
+
+    if not (device_info := ipmi_data._device_info):
         raise CannotConnect
 
-    # return {"ups_list": nut_data.ups_list, "available_resources": status}
     return {"device_info": device_info}
 
 
@@ -177,8 +175,8 @@ class IpmiConfigFlow(ConfigFlow, domain=DOMAIN):
             info = await validate_input(self.hass, config)
         except CannotConnect:
             errors[CONF_BASE] = "cannot_connect"
-        except Exception:  # pylint: disable=broad-except
-            _LOGGER.exception("Unexpected exception")
+        except (Exception) as err:  # pylint: disable=broad-except
+            _LOGGER.exception("Unexpected exception: %s", err)
             errors[CONF_BASE] = "unknown"
         return info, errors
 

@@ -57,7 +57,7 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Set up Network UPS Tools (NUT) from a config entry."""
+    """Set up IPMI from a config entry."""
 
     # strip out the stale options CONF_RESOURCES,
     # maintain the entry in data in case of version rollback
@@ -264,14 +264,16 @@ class PyIpmiData:
 
             for s in iter_fct():
                 name = getattr(s, 'device_id_string', None)
-                id_string = re.sub('[^0-9a-zA-Z ]+', '', name)
-                id_string = id_string.replace(' ', '_').lower()
+                if name:
+                    id_string = re.sub('[^0-9a-zA-Z ]+', '', name)
+                    id_string = id_string.replace(' ', '_').lower()
+                else:
+                    id_string = name
+
                 sensor_type = getattr(s, 'sensor_type_code', None)
                 value = None
 
                 try:
-                    states = None
-
                     if s.type is pyipmi.sdr.SDR_TYPE_FULL_SENSOR_RECORD:
                         (value, states) = ipmi.get_sensor_reading(s.number)
                         if value is not None:
@@ -303,8 +305,9 @@ class PyIpmiData:
 
             device_info = IpmiDeviceInfo(device_id, revision, fw_revision, ipmi_version, manufacturer, product_name, serial_number, power_on, sensors)
             ipmi.session.close()
-
-        except (IpmiConnectionError, ConnectionResetError) as err:
+        
+        # except (IpmiConnectionError, ConnectionResetError) as err:
+        except (Exception) as err: # pylint: disable=broad-except
             _LOGGER.error("Error connecting to IPMI server %s: %s", self._host, err)
             device_info = None
             sensors = None
@@ -317,7 +320,7 @@ class PyIpmiData:
             ipmi = self.connect()
             ipmi.chassis_control(pyipmi.chassis.CONTROL_POWER_UP)
             ipmi.session.close()
-        except (IpmiConnectionError, ConnectionResetError) as err:
+        except (Exception) as err: # pylint: disable=broad-except
             _LOGGER.error("Error connecting to IPMI server %s: %s", self._host, err)
 
     def power_off(self) -> None:
@@ -325,7 +328,7 @@ class PyIpmiData:
             ipmi = self.connect()
             ipmi.chassis_control(pyipmi.chassis.CONTROL_POWER_DOWN)
             ipmi.session.close()
-        except (IpmiConnectionError, ConnectionResetError) as err:
+        except (Exception) as err: # pylint: disable=broad-except
             _LOGGER.error("Error connecting to IPMI server %s: %s", self._host, err)
 
     def power_cycle(self) -> None:
@@ -333,7 +336,7 @@ class PyIpmiData:
             ipmi = self.connect()
             ipmi.chassis_control(pyipmi.chassis.CONTROL_POWER_CYCLE)
             ipmi.session.close()
-        except (IpmiConnectionError, ConnectionResetError) as err:
+        except (Exception) as err: # pylint: disable=broad-except
             _LOGGER.error("Error connecting to IPMI server %s: %s", self._host, err)
 
     def power_reset(self) -> None:
@@ -341,7 +344,7 @@ class PyIpmiData:
             ipmi = self.connect()
             ipmi.chassis_control(pyipmi.chassis.CONTROL_HARD_RESET)
             ipmi.session.close()
-        except (IpmiConnectionError, ConnectionResetError) as err:
+        except (Exception) as err: # pylint: disable=broad-except
             _LOGGER.error("Error connecting to IPMI server %s: %s", self._host, err)
 
     def soft_shutdown(self) -> None:
@@ -349,6 +352,6 @@ class PyIpmiData:
             ipmi = self.connect()
             ipmi.chassis_control(pyipmi.chassis.CONTROL_SOFT_SHUTDOWN)
             ipmi.session.close()
-        except (IpmiConnectionError, ConnectionResetError) as err:
+        except (Exception) as err: # pylint: disable=broad-except
             _LOGGER.error("Error connecting to IPMI server %s: %s", self._host, err)
 
