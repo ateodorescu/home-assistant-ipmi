@@ -18,3 +18,6 @@ The following `actions` are added:
 - soft shutdown
 
 The `switch` allows you to turn on the server and shut it down gracefuly.
+
+The integration uses the Python library [python-ipmi](https://github.com/kontron/python-ipmi) to connect to IPMI servers which means that if that library can't connect to your server via RMCP interface then the integration won't work for you.
+
