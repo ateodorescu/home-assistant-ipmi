@@ -21,3 +21,6 @@ The `switch` allows you to turn on the server and shut it down gracefuly.
 
 The integration uses the Python library [python-ipmi](https://github.com/kontron/python-ipmi) to connect to IPMI servers which means that if that library can't connect to your server via RMCP interface then the integration won't work for you.
 
+
+For cases where the RMCP connection won't work via the Python implementation, there is another way
+via the [ipmitool integration](https://github.com/ateodorescu/home-assistant-ipmitool) which uses the [`ipmi-server` addon](https://github.com/ateodorescu/home-assistant-addons) to wrap around the `ipmitool` executable.
