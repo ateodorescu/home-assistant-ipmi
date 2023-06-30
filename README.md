@@ -23,4 +23,4 @@ The integration uses the Python library [python-ipmi](https://github.com/kontron
 
 
 For cases where the RMCP connection won't work via the Python implementation, there is another way
-via the [ipmitool integration](https://github.com/ateodorescu/home-assistant-ipmitool) which uses the [`ipmi-server` addon](https://github.com/ateodorescu/home-assistant-addons) to wrap around the `ipmitool` executable.
+via the [`ipmitool` integration](https://github.com/ateodorescu/home-assistant-ipmitool) which uses the [`ipmi-server` addon](https://github.com/ateodorescu/home-assistant-addons) to wrap around the `ipmitool` executable.
