@@ -21,6 +21,13 @@
       "already_configured": "[%key:common::config_flow::abort::already_configured_device%]"
     }
   },
+  "entity": {
+    "switch": {
+      "chassis": {
+        "name":"Power on/Soft shutdown"
+      }
+    }
+  },
   "options": {
     "step": {
       "init": {

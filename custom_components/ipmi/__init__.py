@@ -228,7 +228,7 @@ class PyIpmiData:
             ipmi = requests.get(url, params=params)
             response = ipmi.json()
         except (Exception) as err: # pylint: disable=broad-except
-            _LOGGER.info("'ipmi-server' addon is not available. Let's use RMCP.")
+            _LOGGER.debug("'ipmi-server' addon is not available. Let's use RMCP.")
 
         return response
     
