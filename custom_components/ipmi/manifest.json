@@ -5,9 +5,10 @@
   "config_flow": true,
   "dependencies": [],
   "documentation": "https://github.com/ateodorescu/home-assistant-ipmi",
+  "issue_tracker": "https://github.com/ateodorescu/home-assistant-ipmi/issues",
   "integration_type": "device",
   "iot_class": "local_polling",
   "requirements": ["python-ipmi"],
-  "version": "1.0.1",
+  "version": "1.1.0",
   "zeroconf": ["_ipmi._tcp.local."]
 }

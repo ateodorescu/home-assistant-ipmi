@@ -2,6 +2,11 @@
 from __future__ import annotations
 
 from homeassistant.const import Platform
+from homeassistant.const import (
+    ATTR_MANUFACTURER,
+    ATTR_MODEL,
+    ATTR_SW_VERSION,
+)
 
 DOMAIN = "ipmi"
 
@@ -13,6 +18,10 @@ DEFAULT_HOST = ""
 DEFAULT_PORT = 623
 DEFAULT_USERNAME = "ADMIN"
 DEFAULT_PASSWORD = ""
+CONF_ADDON_PORT = "addon_port"
+DEFAULT_ADDON_PORT = 9595
+
+IPMI_URL = "http://localhost"
 
 KEY_STATUS = "status"
 
@@ -22,6 +31,11 @@ DEFAULT_SCAN_INTERVAL = 10
 PYIPMI_DATA = "data"
 PYIPMI_UNIQUE_ID = "unique_id"
 
+IPMI_DEV_INFO_TO_DEV_INFO: dict[str, str] = {
+    "manufacturer_name": ATTR_MANUFACTURER,
+    "product_name": ATTR_MODEL,
+    "firmware_revision": ATTR_SW_VERSION,
+}
 
 USER_AVAILABLE_COMMANDS = "user_available_commands"
 

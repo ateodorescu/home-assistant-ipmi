@@ -13,15 +13,13 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
-    ATTR_MANUFACTURER,
-    ATTR_MODEL,
-    ATTR_SW_VERSION,
     STATE_UNKNOWN,
     STATE_OFF,
     STATE_ON,
-    EntityCategory,
     UnitOfElectricPotential,
     UnitOfTemperature,
+    UnitOfPower,
+    UnitOfTime,
     REVOLUTIONS_PER_MINUTE
 )
 from homeassistant.core import HomeAssistant
@@ -39,19 +37,14 @@ from .const import (
     KEY_STATUS,
     PYIPMI_DATA,
     PYIPMI_UNIQUE_ID,
+    IPMI_DEV_INFO_TO_DEV_INFO
 )
-
-IPMI_DEV_INFO_TO_DEV_INFO: dict[str, str] = {
-    "manufacturer": ATTR_MANUFACTURER,
-    "product_name": ATTR_MODEL,
-    "fw_revision": ATTR_SW_VERSION,
-}
 
 _LOGGER = logging.getLogger(__name__)
 
 def _get_ipmi_device_info(data: PyIpmiData) -> DeviceInfo:
     """Return a DeviceInfo object filled with IPMI device info."""
-    ipmi_dev_infos = asdict(data.device_info)
+    ipmi_dev_infos = asdict(data.device_info)["device"]
     ipmi_infos = {
         info_key: ipmi_dev_infos[ipmi_key]
         for ipmi_key, info_key in IPMI_DEV_INFO_TO_DEV_INFO.items()
@@ -75,9 +68,9 @@ async def async_setup_entry(
     status = coordinator.data
     entities = []
 
-    for id in status.sensors.temp:
+    for id in status.sensors["temperature"]:
         enabled = True
-        value = status.sensors.states[id]
+        value = status.states[id]
 
         if not value:
             enabled = False
@@ -87,7 +80,7 @@ async def async_setup_entry(
                 coordinator,
                 SensorEntityDescription(
                     key=id,
-                    name=status.sensors.temp[id],
+                    name=status.sensors["temperature"][id],
                     native_unit_of_measurement=UnitOfTemperature.CELSIUS,
                     device_class=SensorDeviceClass.TEMPERATURE,
                     state_class=SensorStateClass.MEASUREMENT,
@@ -99,9 +92,9 @@ async def async_setup_entry(
             )
         )
 
-    for id in status.sensors.voltage:
+    for id in status.sensors["voltage"]:
         enabled = True
-        value = status.sensors.states[id]
+        value = status.states[id]
 
         if not value:
             enabled = False
@@ -111,7 +104,7 @@ async def async_setup_entry(
                 coordinator,
                 SensorEntityDescription(
                     key=id,
-                    name=status.sensors.voltage[id],
+                    name=status.sensors["voltage"][id],
                     native_unit_of_measurement=UnitOfElectricPotential.VOLT,
                     device_class=SensorDeviceClass.VOLTAGE,
                     state_class=SensorStateClass.MEASUREMENT,
@@ -123,9 +116,9 @@ async def async_setup_entry(
             )
         )
 
-    for id in status.sensors.fan:
+    for id in status.sensors["fan"]:
         enabled = True
-        value = status.sensors.states[id]
+        value = status.states[id]
 
         if not value:
             enabled = False
@@ -135,9 +128,57 @@ async def async_setup_entry(
                 coordinator,
                 SensorEntityDescription(
                     key=id,
-                    name=status.sensors.fan[id],
+                    name=status.sensors ["fan"][id],
                     icon="mdi:fan",
                     native_unit_of_measurement=REVOLUTIONS_PER_MINUTE,
+                    state_class=SensorStateClass.MEASUREMENT,
+                    # entity_category=EntityCategory.DIAGNOSTIC,
+                    entity_registry_enabled_default=enabled,
+                ),
+                data,
+                unique_id,
+            )
+        )
+
+    for id in status.sensors["power"]:
+        enabled = True
+        value = status.states[id]
+
+        if not value:
+            enabled = False
+
+        entities.append(
+            IPMISensor(
+                coordinator,
+                SensorEntityDescription(
+                    key=id,
+                    name=status.sensors ["power"][id],
+                    native_unit_of_measurement=UnitOfPower.WATT,
+                    device_class=SensorDeviceClass.POWER,
+                    state_class=SensorStateClass.MEASUREMENT,
+                    # entity_category=EntityCategory.DIAGNOSTIC,
+                    entity_registry_enabled_default=enabled,
+                ),
+                data,
+                unique_id,
+            )
+        )
+
+    for id in status.sensors["time"]:
+        enabled = True
+        value = status.states[id]
+
+        if not value:
+            enabled = False
+
+        entities.append(
+            IPMISensor(
+                coordinator,
+                SensorEntityDescription(
+                    key=id,
+                    name=status.sensors ["time"][id],
+                    native_unit_of_measurement=UnitOfTime.SECONDS,
+                    device_class=SensorDeviceClass.DURATION,
                     state_class=SensorStateClass.MEASUREMENT,
                     # entity_category=EntityCategory.DIAGNOSTIC,
                     entity_registry_enabled_default=enabled,
@@ -161,6 +202,7 @@ async def async_setup_entry(
         )
     )
 
+    _LOGGER.info("Sensors added")
     async_add_entities(entities, True)
 
 
@@ -189,14 +231,30 @@ class IPMISensor(CoordinatorEntity[DataUpdateCoordinator[dict[str, str]]], Senso
         self._attr_device_info.update(_get_ipmi_device_info(data))
 
     @property
-    def native_value(self) -> str | None:
-        """Return entity state from ups."""
+    def available(self) -> bool:
+        """Return True if entity is available."""
         status = self.coordinator.data
+
+        if self.entity_description.key == KEY_STATUS:
+            return True
+        elif status.states[self.entity_description.key] is not None:
+            return True
+        else:
+            return False
+
+    @property
+    def native_value(self) -> str | None:
+        """Return entity state from server states."""
+        status = self.coordinator.data
+
         if self.entity_description.key == KEY_STATUS:
             if status.power_on:
                 return STATE_ON
             else:
                 return STATE_OFF
-        return status.sensors.states.get(self.entity_description.key)
+        elif (status.states[self.entity_description.key] is not None):
+            return status.states[self.entity_description.key]
+        else:
+            return STATE_UNKNOWN
 
 

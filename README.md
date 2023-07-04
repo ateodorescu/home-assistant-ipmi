@@ -6,14 +6,17 @@ hardware-based platform management systems that makes it possible to control and
 
 ## Home Assistant integration
 This integration allows you to monitor and control servers that support IPMI.
-To be able to connect to IPMI servers we use the Python library [python-ipmi](https://github.com/kontron/python-ipmi)
-which has some limitations and that means that we may or may not connect to your IPMI server.
+It can connect to your servers in two ways:
+- via the `ipmi-server` addon from [here](https://github.com/ateodorescu/home-assistant-addons) which is
+    basically a wrapper for `ipmitool`.
+- via the Python library [python-ipmi](https://github.com/kontron/python-ipmi)
+which hasn't been tested with all servers.
 
-If the integration doesn't work for you then you could take a look at this [`ipmitool` integration](https://github.com/ateodorescu/home-assistant-ipmitool) 
-that may work for you (beware that it depends on an addon to do the job). 
+If the `ipmi-server` addon is installed and started then this will be primarily used,
+and then it will fall back to the Python library if the addon is not reachable.
 
 ## Installation
-Just copy the `custom_components` folder in your home assistant `config` folder.
+Install it via HACS or just copy the `custom_components` folder in your home assistant `config` folder.
 Restart HASS and then add the `ipmi` integration.
 
 ## What does the integration?
@@ -24,7 +27,7 @@ The following `sensors` will be added:
 - all temperature sensors
 - all fan sensors
 - all voltage sensors
-- all power sensors
+- all power sensors (the Python library can't extract these)
 
 The following `actions` are added:
 - power on

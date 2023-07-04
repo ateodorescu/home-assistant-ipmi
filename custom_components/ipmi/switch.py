@@ -6,28 +6,9 @@ from typing import Any, cast
 
 from homeassistant.components.switch import (
     SwitchEntity,
-    SwitchEntityDescription,
-    SwitchDeviceClass
+    SwitchEntityDescription
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import (
-    ATTR_MANUFACTURER,
-    ATTR_MODEL,
-    ATTR_SW_VERSION,
-    PERCENTAGE,
-    STATE_UNKNOWN,
-    STATE_OFF,
-    STATE_ON,
-    EntityCategory,
-    UnitOfApparentPower,
-    UnitOfElectricCurrent,
-    UnitOfElectricPotential,
-    UnitOfFrequency,
-    UnitOfPower,
-    UnitOfTemperature,
-    UnitOfTime,
-    REVOLUTIONS_PER_MINUTE
-)
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo, generate_entity_id
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -42,21 +23,16 @@ from .const import (
     DOMAIN,
     PYIPMI_DATA,
     PYIPMI_UNIQUE_ID,
+    IPMI_DEV_INFO_TO_DEV_INFO
 )
 
 ENTITY_ID_FORMAT = DOMAIN + ".{}"
-
-IPMI_DEV_INFO_TO_DEV_INFO: dict[str, str] = {
-    "manufacturer": ATTR_MANUFACTURER,
-    "product_name": ATTR_MODEL,
-    "fw_revision": ATTR_SW_VERSION,
-}
 
 _LOGGER = logging.getLogger(__name__)
 
 def _get_ipmi_device_info(data: PyIpmiData) -> DeviceInfo:
     """Return a DeviceInfo object filled with IPMI device info."""
-    ipmi_dev_infos = asdict(data.device_info)
+    ipmi_dev_infos = asdict(data.device_info)["device"]
     ipmi_infos = {
         info_key: ipmi_dev_infos[ipmi_key]
         for ipmi_key, info_key in IPMI_DEV_INFO_TO_DEV_INFO.items()
@@ -130,11 +106,11 @@ class IpmiSwitch(CoordinatorEntity[DataUpdateCoordinator[dict[str, str]]],Switch
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on relay."""
+        await self.hass.async_add_executor_job(self.ipmi_data.power_on)
         self.async_write_ha_state()
-        self.ipmi_data.power_on()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn off relay."""
+        await self.hass.async_add_executor_job(self.ipmi_data.soft_shutdown)
         self.async_write_ha_state()
-        self.ipmi_data.soft_shutdown()
 

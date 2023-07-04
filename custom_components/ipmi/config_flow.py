@@ -10,6 +10,7 @@ import voluptuous as vol
 from homeassistant import exceptions
 from homeassistant.components import zeroconf
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, OptionsFlow
+from homeassistant.helpers import config_validation as cv, selector
 from homeassistant.const import (
     CONF_ALIAS,
     CONF_BASE,
@@ -23,7 +24,17 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResult
 
 from . import PyIpmiData
-from .const import DEFAULT_HOST, DEFAULT_ALIAS, DEFAULT_PORT, DEFAULT_SCAN_INTERVAL, DOMAIN, DEFAULT_USERNAME, DEFAULT_PASSWORD
+from .const import (
+    DEFAULT_HOST, 
+    DEFAULT_ALIAS, 
+    DEFAULT_PORT, 
+    DEFAULT_USERNAME, 
+    DEFAULT_PASSWORD,
+    DEFAULT_SCAN_INTERVAL,
+    CONF_ADDON_PORT,
+    DEFAULT_ADDON_PORT,
+    DOMAIN,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -34,25 +45,21 @@ def _base_schema(discovery_info: zeroconf.ZeroconfServiceInfo | None) -> vol.Sch
     if not discovery_info:
         base_schema.update(
             {
-                vol.Optional(CONF_ALIAS, default=DEFAULT_ALIAS): str,
-                vol.Optional(CONF_HOST, default=DEFAULT_HOST): str,
-                vol.Optional(CONF_PORT, default=DEFAULT_PORT): int,
+                vol.Required(CONF_ALIAS, default=DEFAULT_ALIAS): cv.string,
+                vol.Required(CONF_HOST, default=DEFAULT_HOST): cv.string,
+                vol.Required(CONF_PORT, default=DEFAULT_PORT): cv.positive_int,
+                vol.Optional(CONF_USERNAME, default=DEFAULT_USERNAME): cv.string, 
+                vol.Optional(CONF_PASSWORD, default=DEFAULT_PASSWORD): cv.string,
             }
         )
+
     base_schema.update(
-        # {vol.Optional(CONF_USERNAME): str, vol.Optional(CONF_PASSWORD): str}
         {
-            vol.Optional(CONF_USERNAME, default=DEFAULT_USERNAME): str, 
-            vol.Optional(CONF_PASSWORD, default=DEFAULT_PASSWORD): str
+            vol.Optional(CONF_ADDON_PORT, default=DEFAULT_ADDON_PORT): cv.string,
         }
     )
 
     return vol.Schema(base_schema)
-
-
-def _ipmi_schema(ups_list: dict[str, str]) -> vol.Schema:
-    """UPS selection schema."""
-    return vol.Schema({vol.Required(CONF_ALIAS): vol.In(ups_list)})
 
 
 async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
@@ -63,11 +70,12 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
 
     host = data[CONF_HOST]
     port = data[CONF_PORT]
-    alias = data.get(CONF_ALIAS)
-    username = data.get(CONF_USERNAME)
-    password = data.get(CONF_PASSWORD)
+    alias = data[CONF_ALIAS]
+    username = data[CONF_USERNAME]
+    password = data[CONF_PASSWORD]
+    addon_port = data[CONF_ADDON_PORT]
 
-    ipmi_data = PyIpmiData(host, port, alias, username, password)
+    ipmi_data = PyIpmiData(host, port, alias, username, password, addon_port)
     await hass.async_add_executor_job(ipmi_data.update)
 
     if not (device_info := ipmi_data._device_info):
@@ -80,28 +88,25 @@ def _format_host_port_alias(user_input: Mapping[str, Any]) -> str:
     """Format a host, port, and alias so it can be used for comparison or display."""
     host = user_input[CONF_HOST]
     port = user_input[CONF_PORT]
-    alias = user_input.get(CONF_ALIAS)
-    if alias:
-        return f"{alias}@{host}:{port}"
-    return f"{host}:{port}"
+    alias = user_input[CONF_ALIAS]
+    return f"{alias}@{host}:{port}"
 
 
 class IpmiConfigFlow(ConfigFlow, domain=DOMAIN):
-    """Handle a config flow for Network UPS Tools (NUT)."""
+    """Handle a config flow for IPMI."""
 
-    VERSION = 1
+    VERSION = 1.1
 
     def __init__(self) -> None:
-        """Initialize the nut config flow."""
+        """Initialize the ipmi config flow."""
         self.ipmi_config: dict[str, Any] = {}
         self.discovery_info: zeroconf.ZeroconfServiceInfo | None = None
-        self.ups_list: dict[str, str] | None = None
         self.title: str | None = None
 
     async def async_step_zeroconf(
         self, discovery_info: zeroconf.ZeroconfServiceInfo
     ) -> FlowResult:
-        """Prepare configuration for a discovered nut device."""
+        """Prepare configuration for a discovered ipmi device."""
         self.discovery_info = discovery_info
         await self._async_handle_discovery_without_unique_id()
         self.context["title_placeholders"] = {
@@ -136,29 +141,8 @@ class IpmiConfigFlow(ConfigFlow, domain=DOMAIN):
             step_id="user", data_schema=_base_schema(self.discovery_info), errors=errors
         )
 
-    async def async_step_ipmi(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
-        """Handle the picking the ups."""
-        errors: dict[str, str] = {}
-
-        if user_input is not None:
-            self.ipmi_config.update(user_input)
-            if self._host_port_alias_already_configured(self.ipmi_config):
-                return self.async_abort(reason="already_configured")
-            _, errors = await self._async_validate_or_error(self.ipmi_config)
-            if not errors:
-                title = _format_host_port_alias(self.ipmi_config)
-                return self.async_create_entry(title=title, data=self.ipmi_config)
-
-        return self.async_show_form(
-            step_id="ups",
-            data_schema=_ipmi_schema(self.ups_list or {}),
-            errors=errors,
-        )
-
     def _host_port_alias_already_configured(self, user_input: dict[str, Any]) -> bool:
-        """See if we already have a nut entry matching user input configured."""
+        """See if we already have an ipmi entry matching user input configured."""
         existing_host_port_aliases = {
             _format_host_port_alias(entry.data)
             for entry in self._async_current_entries()
@@ -188,7 +172,7 @@ class IpmiConfigFlow(ConfigFlow, domain=DOMAIN):
 
 
 class OptionsFlowHandler(OptionsFlow):
-    """Handle a option flow for nut."""
+    """Handle a option flow for ipmi."""
 
     def __init__(self, config_entry: ConfigEntry) -> None:
         """Initialize options flow."""

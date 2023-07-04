@@ -58,7 +58,8 @@ async def async_call_action_from_config(
     data: PyIpmiData = hass.data[DOMAIN][entry_id][PYIPMI_DATA]
 
     command = getattr(data, device_action_name)
-    command()
+    # command()
+    await hass.async_add_executor_job(command)
 
 
 def _get_entry_id_from_device_id(hass: HomeAssistant, device_id: str) -> str | None:
