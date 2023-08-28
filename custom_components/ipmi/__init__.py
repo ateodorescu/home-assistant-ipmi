@@ -46,6 +46,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from .const import (
     COORDINATOR,
     DEFAULT_SCAN_INTERVAL,
+    DEFAULT_TIMEOUT,
     CONF_ADDON_PORT,
     DOMAIN,
     PLATFORMS,
@@ -86,7 +87,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     async def async_update_data() -> IpmiDeviceInfo:
         """Fetch data from IPMI."""
-        async with async_timeout.timeout(10):
+        async with async_timeout.timeout(DEFAULT_TIMEOUT):
             await hass.async_add_executor_job(data.update)
             if not data.device_info:
                 raise UpdateFailed("Error fetching IPMI state")
