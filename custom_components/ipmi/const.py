@@ -1,4 +1,3 @@
-"""The nut component."""
 from __future__ import annotations
 
 from homeassistant.const import Platform
@@ -27,7 +26,7 @@ IPMI_URL = "http://localhost"
 KEY_STATUS = "status"
 
 COORDINATOR = "coordinator"
-DEFAULT_SCAN_INTERVAL = 30
+DEFAULT_SCAN_INTERVAL = 60
 
 PYIPMI_DATA = "data"
 PYIPMI_UNIQUE_ID = "unique_id"

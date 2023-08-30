@@ -349,6 +349,9 @@ class PyIpmiData:
         json = self.getFromAddon(None)
 
         if (json is not None):
+            if (json["debug"] is not None)
+                _LOGGER.debug(json["debug"])
+
             if (not json["success"]):
                 _LOGGER.error(json["message"])
                 json = None
