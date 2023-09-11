@@ -17,12 +17,13 @@ from homeassistant.helpers.update_coordinator import (
     DataUpdateCoordinator,
 )
 
-from . import PyIpmiData
+from . import IpmiServer
+from .helpers import get_ipmi_server
 from .const import (
     COORDINATOR,
     DOMAIN,
-    PYIPMI_DATA,
-    PYIPMI_UNIQUE_ID,
+    IPMI_DATA,
+    IPMI_UNIQUE_ID,
     IPMI_DEV_INFO_TO_DEV_INFO
 )
 
@@ -30,7 +31,7 @@ ENTITY_ID_FORMAT = DOMAIN + ".{}"
 
 _LOGGER = logging.getLogger(__name__)
 
-def _get_ipmi_device_info(data: PyIpmiData) -> DeviceInfo:
+def _get_ipmi_device_info(data: IpmiServer) -> DeviceInfo:
     """Return a DeviceInfo object filled with IPMI device info."""
     ipmi_dev_infos = asdict(data.device_info)["device"]
     ipmi_infos = {
@@ -47,11 +48,10 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up switches for device."""
-    pyipmi_data = hass.data[DOMAIN][config_entry.entry_id]
-    coordinator = pyipmi_data[COORDINATOR]
-    data = pyipmi_data[PYIPMI_DATA]
-    unique_id = pyipmi_data[PYIPMI_UNIQUE_ID]
-    status = coordinator.data
+    ipmiserver = get_ipmi_server(hass, config_entry.entry_id)
+    coordinator = ipmiserver[COORDINATOR]
+    data = ipmiserver[IPMI_DATA]
+    unique_id = ipmiserver[IPMI_UNIQUE_ID]
     entities = []
 
     entities.append(
@@ -80,7 +80,7 @@ class IpmiSwitch(CoordinatorEntity[DataUpdateCoordinator[dict[str, str]]],Switch
         coordinator: DataUpdateCoordinator[dict[str, str]],
         hass: HomeAssistant,
         switch_description: SwitchEntityDescription,
-        data: PyIpmiData,
+        data: IpmiServer,
         unique_id: str,
     ) -> None:
         """Initialize the switch."""

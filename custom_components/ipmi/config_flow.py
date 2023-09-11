@@ -23,7 +23,7 @@ from homeassistant.const import (
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResult
 
-from . import PyIpmiData
+from . import IpmiServer
 from .const import (
     DEFAULT_HOST, 
     DEFAULT_ALIAS, 
@@ -75,7 +75,7 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     password = data[CONF_PASSWORD]
     addon_port = data[CONF_ADDON_PORT]
 
-    ipmi_data = PyIpmiData(host, port, alias, username, password, addon_port)
+    ipmi_data = IpmiServer(hass, None, host, port, alias, username, password, addon_port)
     await hass.async_add_executor_job(ipmi_data.update)
 
     if not (device_info := ipmi_data._device_info):

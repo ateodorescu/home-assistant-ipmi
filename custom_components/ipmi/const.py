@@ -19,6 +19,7 @@ DEFAULT_USERNAME = "ADMIN"
 DEFAULT_PASSWORD = ""
 CONF_ADDON_PORT = "addon_port"
 DEFAULT_ADDON_PORT = 9595
+# DEFAULT_ADDON_PORT = 80
 DEFAULT_TIMEOUT = 60
 
 IPMI_URL = "http://localhost"
@@ -27,9 +28,14 @@ KEY_STATUS = "status"
 
 COORDINATOR = "coordinator"
 DEFAULT_SCAN_INTERVAL = 60
+# DEFAULT_SCAN_INTERVAL = 10
+SERVERS = "servers"
+DISPATCHERS = "dispatchers"
 
-PYIPMI_DATA = "data"
-PYIPMI_UNIQUE_ID = "unique_id"
+IPMI_DATA = "data"
+IPMI_UNIQUE_ID = "unique_id"
+IPMI_NEW_SENSOR_SIGNAL = "ipmi_new_sensor_signal.{}"
+IPMI_UPDATE_SENSOR_SIGNAL = "ipmi_update_sensor_signal.{}"
 
 IPMI_DEV_INFO_TO_DEV_INFO: dict[str, str] = {
     "manufacturer_name": ATTR_MANUFACTURER,
