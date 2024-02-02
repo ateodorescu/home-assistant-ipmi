@@ -113,4 +113,3 @@ class IpmiSwitch(CoordinatorEntity[DataUpdateCoordinator[dict[str, str]]],Switch
         """Turn off relay."""
         await self.hass.async_add_executor_job(self.ipmi_data.soft_shutdown)
         self.async_write_ha_state()
-

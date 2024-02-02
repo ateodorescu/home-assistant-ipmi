@@ -33,11 +33,12 @@ from .const import (
     DEFAULT_SCAN_INTERVAL,
     CONF_ADDON_PORT,
     DEFAULT_ADDON_PORT,
+    CONF_IPMI_SERVER_HOST,
+    DEFAULT_IPMI_SERVER_HOST,
     DOMAIN,
 )
 
 _LOGGER = logging.getLogger(__name__)
-
 
 def _base_schema(discovery_info: zeroconf.ZeroconfServiceInfo | None) -> vol.Schema:
     """Generate base schema."""
@@ -55,12 +56,12 @@ def _base_schema(discovery_info: zeroconf.ZeroconfServiceInfo | None) -> vol.Sch
 
     base_schema.update(
         {
+            vol.Optional(CONF_IPMI_SERVER_HOST, default=DEFAULT_IPMI_SERVER_HOST): cv.string,
             vol.Optional(CONF_ADDON_PORT, default=DEFAULT_ADDON_PORT): cv.string,
         }
     )
 
     return vol.Schema(base_schema)
-
 
 async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
     """Validate the user input allows us to connect.
@@ -73,9 +74,10 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     alias = data[CONF_ALIAS]
     username = data[CONF_USERNAME]
     password = data[CONF_PASSWORD]
+    ipmi_server_host = data[CONF_IPMI_SERVER_HOST]
     addon_port = data[CONF_ADDON_PORT]
 
-    ipmi_data = IpmiServer(hass, None, host, port, alias, username, password, addon_port)
+    ipmi_data = IpmiServer(hass, None, host, port, alias, username, password, ipmi_server_host, addon_port)
     await hass.async_add_executor_job(ipmi_data.update)
 
     if not (device_info := ipmi_data._device_info):
@@ -83,14 +85,12 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
 
     return {"device_info": device_info}
 
-
 def _format_host_port_alias(user_input: Mapping[str, Any]) -> str:
     """Format a host, port, and alias so it can be used for comparison or display."""
     host = user_input[CONF_HOST]
     port = user_input[CONF_PORT]
     alias = user_input[CONF_ALIAS]
     return f"{alias}@{host}:{port}"
-
 
 class IpmiConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for IPMI."""
@@ -170,7 +170,6 @@ class IpmiConfigFlow(ConfigFlow, domain=DOMAIN):
         """Get the options flow for this handler."""
         return OptionsFlowHandler(config_entry)
 
-
 class OptionsFlowHandler(OptionsFlow):
     """Handle a option flow for ipmi."""
 
@@ -196,7 +195,6 @@ class OptionsFlowHandler(OptionsFlow):
         }
 
         return self.async_show_form(step_id="init", data_schema=vol.Schema(base_schema))
-
 
 class CannotConnect(exceptions.HomeAssistantError):
     """Error to indicate we cannot connect."""

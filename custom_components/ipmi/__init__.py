@@ -52,6 +52,7 @@ from .const import (
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_TIMEOUT,
     CONF_ADDON_PORT,
+    CONF_IPMI_SERVER_HOST,
     DOMAIN,
     PLATFORMS,
     IPMI_DATA,
@@ -60,7 +61,6 @@ from .const import (
     IPMI_UPDATE_SENSOR_SIGNAL,
     USER_AVAILABLE_COMMANDS,
     INTEGRATION_SUPPORTED_COMMANDS,
-    IPMI_URL,
     SERVERS,
     DISPATCHERS,
     IPMI_DEV_INFO_TO_DEV_INFO
@@ -100,11 +100,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     alias = config[CONF_ALIAS]
     username = config[CONF_USERNAME]
     password = config[CONF_PASSWORD]
+    ipmi_server_host = config[CONF_IPMI_SERVER_HOST]
     addon_port = config[CONF_ADDON_PORT]
     
     scan_interval = entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
 
-    data = IpmiServer(hass, entry.entry_id, host, port, alias, username, password, addon_port)
+    data = IpmiServer(hass, entry.entry_id, host, port, alias, username, password, ipmi_server_host,addon_port)
     coordinator = IpmiCoordinator(hass, scan_interval, data)
 
     # Fetch initial data so we have data when entities subscribe
@@ -141,14 +142,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     return True
 
-
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
         hass_data = get_ipmi_data(hass)
         hass_data[SERVERS].pop(entry.entry_id)
     return unload_ok
-
 
 async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Handle options update."""
@@ -193,4 +192,3 @@ class IpmiCoordinator(DataUpdateCoordinator):
                 raise UpdateFailed("Error fetching IPMI state")
             
             return self.ipmiData.device_info
-
