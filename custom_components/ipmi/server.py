@@ -40,6 +40,7 @@ from .const import (
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_TIMEOUT,
     CONF_ADDON_PORT,
+    CONF_IPMI_SERVER_HOST,
     DOMAIN,
     PLATFORMS,
     IPMI_DATA,
@@ -48,7 +49,6 @@ from .const import (
     IPMI_UPDATE_SENSOR_SIGNAL,
     USER_AVAILABLE_COMMANDS,
     INTEGRATION_SUPPORTED_COMMANDS,
-    IPMI_URL,
     SERVERS,
     DISPATCHERS,
     IPMI_DEV_INFO_TO_DEV_INFO
@@ -82,6 +82,7 @@ class IpmiServer:
         alias: str | None,
         username: str | None,
         password: str | None,
+        ipmi_server_host: str | None,
         addon_port: str | None,
     ) -> None:
         """Initialize the data object."""
@@ -93,7 +94,7 @@ class IpmiServer:
         self._alias = alias
         self._username = username
         self._password = password
-        self._addon_url = IPMI_URL + ":" + addon_port
+        self._addon_url = ipmi_server_host + ":" + addon_port
         
 # when addon runs in dev mode (local web server)
 #         self._addon_url += '/repositories/home-assistant-addons/ipmi-server/rootfs/app/public'
@@ -126,9 +127,12 @@ class IpmiServer:
             if path is not None:
                 url += "/" + path
 
+            _LOGGER.debug(url)
+            _LOGGER.debug(params)
             ipmi = requests.get(url, params=params)
             response = ipmi.json()
         except (Exception) as err: # pylint: disable=broad-except
+            _LOGGER.debug(err)
             _LOGGER.debug("'ipmi-server' addon is not available. Let's use RMCP.")
 
         return response
@@ -229,7 +233,6 @@ class IpmiServer:
         except (Exception) as err: # pylint: disable=broad-except
             _LOGGER.error("Error connecting to IPMI server %s: %s", self._host, err)
 
-
     def connect(self) -> pyipmi.Ipmi:
         interface = pyipmi.interfaces.create_interface('rmcp',
                                             slave_address=0x81,
@@ -325,4 +328,3 @@ class IpmiServer:
 
         if (json is None):
             self.runRmcpCommand(pyipmi.chassis.CONTROL_SOFT_SHUTDOWN)
-

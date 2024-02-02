@@ -19,7 +19,6 @@ def get_ipmi_data(hass: HomeAssistant) -> IpmiData:
     """Get typed data from hass.data."""
     return hass.data[DOMAIN]
 
-
 def get_ipmi_server(hass: HomeAssistant, server_id: str) -> IpmiServer:
     """Get IPMI server from hass.data."""
     return get_ipmi_data(hass)[SERVERS][server_id]

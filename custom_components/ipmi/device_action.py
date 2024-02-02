@@ -26,7 +26,6 @@ ACTION_SCHEMA = cv.DEVICE_ACTION_BASE_SCHEMA.extend(
     }
 )
 
-
 async def async_get_actions(
     hass: HomeAssistant, device_id: str
 ) -> list[dict[str, str]]:
@@ -44,7 +43,6 @@ async def async_get_actions(
         for command_name in user_available_commands
     ]
 
-
 async def async_call_action_from_config(
     hass: HomeAssistant,
     config: ConfigType,
@@ -60,7 +58,6 @@ async def async_call_action_from_config(
     command = getattr(data, device_action_name)
     # command()
     await hass.async_add_executor_job(command)
-
 
 def _get_entry_id_from_device_id(hass: HomeAssistant, device_id: str) -> str | None:
     device_registry = dr.async_get(hass)

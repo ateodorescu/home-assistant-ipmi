@@ -288,5 +288,3 @@ class IpmiSensor(CoordinatorEntity[DataUpdateCoordinator[dict[str, str]]], Senso
                 return state
             else:
                 return STATE_UNKNOWN
-
-
