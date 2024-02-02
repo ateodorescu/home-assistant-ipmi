@@ -9,7 +9,7 @@ This integration allows you to monitor and control servers that support IPMI.
 It can connect to your servers in three ways:
 - via the `ipmi-server` addon from [here](https://github.com/ateodorescu/home-assistant-addons) which is
     basically a wrapper for `ipmitool`.
-- via the `ipmi-server` docker container. See [mneveroff/ipmi-server](https://hub.docker.com/repository/docker/mneveroff/ipmi-server), for instructions. This is basically a wrapped [ipmi-server](https://github.com/ateodorescu/home-assistant-addons) add-on from the previous option
+- via the `ipmi-server` docker container. See [mneveroff/ipmi-server](https://hub.docker.com/repository/docker/mneveroff/ipmi-server), for instructions. This is basically a wrapped [ipmi-server](https://github.com/ateodorescu/home-assistant-addons) add-on from the previous option.
 - via the Python library [python-ipmi](https://github.com/kontron/python-ipmi)
 which hasn't been tested with all servers.
 
