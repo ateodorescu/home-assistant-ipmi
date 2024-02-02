@@ -105,7 +105,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     
     scan_interval = entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
 
-    data = IpmiServer(hass, entry.entry_id, host, port, alias, username, password, ipmi_server_host,addon_port)
+    data = IpmiServer(hass, entry.entry_id, host, port, alias, username, password, ipmi_server_host, addon_port)
     coordinator = IpmiCoordinator(hass, scan_interval, data)
 
     # Fetch initial data so we have data when entities subscribe
