@@ -100,9 +100,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     alias = config[CONF_ALIAS]
     username = config[CONF_USERNAME]
     password = config[CONF_PASSWORD]
-    ipmi_server_host = config[CONF_IPMI_SERVER_HOST]
     addon_port = config[CONF_ADDON_PORT]
-    
+
+    # keep backward compatibility
+    if config.get(CONF_IPMI_SERVER_HOST) is not None:
+        ipmi_server_host = config[CONF_IPMI_SERVER_HOST]
+    else:
+        ipmi_server_host = 'http://localhost'
+
     scan_interval = entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
 
     data = IpmiServer(hass, entry.entry_id, host, port, alias, username, password, ipmi_server_host, addon_port)
