@@ -1,0 +1,50 @@
+{
+    "config": {
+        "abort": {
+            "already_configured": "L'appareil est déjà configuré"
+        },
+        "error": {
+            "cannot_connect": "Échec de la connexion",
+            "unknown": "Erreur inattendue"
+        },
+        "step": {
+            "user": {
+                "data": {
+                    "alias": "Alias",
+                    "host": "Hôte",
+                    "password": "Mot de passe",
+                    "port": "Port",
+                    "username": "Nom d'utilisateur",
+                    "ipmi_server_host": "Hôte du serveur ipmi (lorsque le serveur ipmi est utilisé)",
+                    "addon_port": "Port de l'addon (lorsque l'addon du serveur ipmi est utilisé)"
+                },
+                "title": "Se connecter au serveur IPMI"
+            }
+        }
+    },
+    "entity": {
+        "switch": {
+            "chassis": {
+                "name": "Allumer / Arrêt (logiciel)"
+            }
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "data": {
+                    "scan_interval": "Intervalle de balayage en secondes"
+                }
+            }
+        }
+    },
+    "device_automation": {
+        "action_type": {
+            "power_on": "Allumer",
+            "power_off": "Extinction",
+            "power_cycle": "Redémarrer",
+            "power_reset": "Réinitialisation d'alimentation",
+            "soft_shutdown": "Arrêt (logiciel)"
+        }
+    }
+}
