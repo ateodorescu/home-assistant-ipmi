@@ -163,8 +163,15 @@ class IpmiServer:
                 
             device_id = ipmi.get_device_id()
             
-            json["device"]["manufacturer_name"] = inv.product_info_area.manufacturer.string
-            json["device"]["product_name"] = inv.board_info_area.product_name.string
+            try: 
+                inv = ipmi.get_fru_inventory()
+                json["device"]["manufacturer_name"] = inv.product_info_area.manufacturer.string
+                json["device"]["product_name"] = inv.board_info_area.product_name.string
+            except (Exception) as err: # pylint: disable=broad-except
+                _LOGGER.warning("Error getting FRU Inventory Device")
+                json["device"]["manufacturer_name"] = "None"
+                json["device"]["product_name"] = "None"  
+                
             json["device"]["firmware_revision"] = device_id.fw_revision.version_to_string()
             json["device"]["product_id"] = device_id.product_id
             json["power_on"] = ipmi.get_chassis_status().power_on
