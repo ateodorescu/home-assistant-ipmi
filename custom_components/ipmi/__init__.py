@@ -169,7 +169,7 @@ def _unique_id_from_status(device_info: IpmiDeviceInfo) -> str | None:
 
     unique_id_group = []
     if product_id:
-        product_id = re.sub("\(.*?\)", '', product_id)
+        product_id = re.sub("(.*?)", '', product_id)
         unique_id_group.append(product_id)
     if alias:
         unique_id_group.append(alias)

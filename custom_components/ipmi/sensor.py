@@ -26,7 +26,6 @@ from homeassistant.const import (
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
     DataUpdateCoordinator,
@@ -63,13 +62,62 @@ def _get_ipmi_device_info(data: IpmiServer) -> DeviceInfo:
 
     return cast(DeviceInfo, ipmi_infos)
 
-def create_entity_sensors(ipmi_data: object, filter: list = []) -> dict:
+
+async def async_setup_entry(
+    hass: HomeAssistant,
+    config_entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
+    """Set up the IPMI sensors."""
+
+    server_id = config_entry.entry_id
+    ipmiserver = get_ipmi_server(hass, server_id)
+
+    if (ipmiserver):
+        coordinator = ipmiserver[COORDINATOR]
+        data = ipmiserver[IPMI_DATA]
+        unique_id = ipmiserver[IPMI_UNIQUE_ID]
+        async_add_entities([
+            IpmiSensor(
+                coordinator,
+                SensorEntityDescription(
+                    key=KEY_STATUS,
+                    name="State",
+                    icon="mdi:power",
+                    entity_registry_enabled_default=True,
+                ),
+                data,
+                unique_id,
+            )
+        ])
+
+        _LOGGER.debug("Sensors added")
+
+        @callback
+        async def async_new_sensors(new_entities):
+            """Set up IPMI sensors."""
+            await create_entity_sensors(ipmiserver, new_entities, async_add_entities)
+
+        get_ipmi_data(hass)[DISPATCHERS][server_id].append(
+            async_dispatcher_connect(
+                hass, 
+                IPMI_NEW_SENSOR_SIGNAL.format(server_id), 
+                async_new_sensors,
+            )
+        )
+        _LOGGER.debug("New entity listener created")
+
+@callback
+async def create_entity_sensors(
+    ipmi_data: object, 
+    filter: list,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
     coordinator = ipmi_data[COORDINATOR]
     data = ipmi_data[IPMI_DATA]
     unique_id = ipmi_data[IPMI_UNIQUE_ID]
     status = coordinator.data
     entities = []
-    # _LOGGER.critical(status)
 
     for id in status.sensors.get("temperature"):
         if (id in filter):
@@ -176,57 +224,8 @@ def create_entity_sensors(ipmi_data: object, filter: list = []) -> dict:
                 )
             )
 
-    return entities
+    async_add_entities(entities, True)
 
-async def async_setup_entry(
-    hass: HomeAssistant,
-    config_entry: ConfigEntry,
-    async_add_entities: AddEntitiesCallback,
-) -> None:
-    """Set up the IPMI sensors."""
-
-    server_id = config_entry.entry_id
-    ipmiserver = get_ipmi_server(hass, server_id)
-    coordinator = ipmiserver[COORDINATOR]
-    data = ipmiserver[IPMI_DATA]
-    unique_id = ipmiserver[IPMI_UNIQUE_ID]
-    async_add_entities([
-        IpmiSensor(
-            coordinator,
-            SensorEntityDescription(
-                key=KEY_STATUS,
-                name="State",
-                icon="mdi:power",
-                entity_registry_enabled_default=True,
-            ),
-            data,
-            unique_id,
-        )
-    ])
-
-    _LOGGER.debug("Sensors added")
-
-    registry = er.async_get(hass)
-
-    @callback
-    def async_new_sensors(new_entities):
-        _async_add_entities(hass, registry, async_add_entities, server_id, new_entities)
-
-    unsub = async_dispatcher_connect(
-        hass, IPMI_NEW_SENSOR_SIGNAL.format(server_id), async_new_sensors
-    )
-    get_ipmi_data(hass)[DISPATCHERS][server_id].append(unsub)
-    _LOGGER.debug("New entity listener created")
-
-@callback
-def _async_add_entities(hass, registry, async_add_entities, server_id, new_entities):
-    """Set up IPMI sensors."""
-    ipmiserver = get_ipmi_server(hass, server_id)
-
-    if (ipmiserver):
-        _LOGGER.debug("New entities: %s", new_entities)
-        entities = create_entity_sensors(ipmiserver, new_entities)
-        async_add_entities(entities, True)
 
 
 class IpmiSensor(CoordinatorEntity[DataUpdateCoordinator[dict[str, str]]], SensorEntity):
