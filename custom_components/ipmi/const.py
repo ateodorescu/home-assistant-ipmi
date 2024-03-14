@@ -20,7 +20,10 @@ DEFAULT_PASSWORD = ""
 CONF_IPMI_SERVER_HOST = "ipmi_server_host"
 DEFAULT_IPMI_SERVER_HOST = "http://localhost"
 CONF_ADDON_PORT = "addon_port"
+CONF_ADDON_INTERFACE = "addon_interface"
+CONF_ADDON_PARAMS = "addon_extra_params"
 DEFAULT_ADDON_PORT = 9595
+DEFAULT_INTERFACE_TYPE = "lanplus"
 DEFAULT_TIMEOUT = 60
 
 KEY_STATUS = "status"

@@ -16,7 +16,9 @@
                     "port": "Port",
                     "username": "Username",
                     "ipmi_server_host": "ipmi-server host (when ipmi-server is used)",
-                    "addon_port": "Addon port (when ipmi-server addon is used)"
+                    "addon_port": "Addon port (when ipmi-server addon is used)",
+                    "addon_interface": "Addon interface type for ipmitool",
+                    "addon_extra_params": "Addon extra params for ipmitool (cypher maybe?)"
                 },
                 "title": "Connect to the IPMI server"
             }

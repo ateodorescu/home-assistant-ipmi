@@ -51,8 +51,11 @@ from .const import (
     COORDINATOR,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_TIMEOUT,
+    DEFAULT_INTERFACE_TYPE,
     CONF_ADDON_PORT,
     CONF_IPMI_SERVER_HOST,
+    CONF_ADDON_INTERFACE,
+    CONF_ADDON_PARAMS,
     DOMAIN,
     PLATFORMS,
     IPMI_DATA,
@@ -94,23 +97,30 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
 
     config = entry.data
-    host = config[CONF_HOST]
-    port = config[CONF_PORT]
-
-    alias = config[CONF_ALIAS]
-    username = config[CONF_USERNAME]
-    password = config[CONF_PASSWORD]
-    addon_port = config[CONF_ADDON_PORT]
 
     # keep backward compatibility
-    if config.get(CONF_IPMI_SERVER_HOST) is not None:
-        ipmi_server_host = config[CONF_IPMI_SERVER_HOST]
-    else:
-        ipmi_server_host = 'http://localhost'
+    ipmi_server_host = config.get(CONF_IPMI_SERVER_HOST)
+    
+    if ipmi_server_host is None:
+        ipmi_server_host = "http://localhost"
 
     scan_interval = entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
 
-    data = IpmiServer(hass, entry.entry_id, host, port, alias, username, password, ipmi_server_host, addon_port)
+    data = IpmiServer(
+        hass, 
+        entry.entry_id, 
+        {
+            "host": config.get(CONF_HOST),
+            "port": config.get(CONF_PORT),
+            "alias": config.get(CONF_ALIAS),
+            "username": config.get(CONF_USERNAME),
+            "password": config.get(CONF_PASSWORD),
+            "ipmi_server_host": ipmi_server_host,
+            "addon_port": config.get(CONF_ADDON_PORT),
+            "addon_interface": config.get(CONF_ADDON_INTERFACE),
+            "addon_extra_params": config.get(CONF_ADDON_PARAMS),
+        }
+    )
     coordinator = IpmiCoordinator(hass, scan_interval, data)
 
     # Fetch initial data so we have data when entities subscribe
@@ -157,6 +167,24 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Handle options update."""
     await hass.config_entries.async_reload(entry.entry_id)
+
+async def async_migrate_entry(hass, config_entry: ConfigEntry):
+    """Migrate old entry."""
+    _LOGGER.debug("Migrating from version %s", config_entry.version)
+
+    if config_entry.version > 1.1:
+      # This means the user has downgraded from a future version
+      return True
+
+    if config_entry.version == 1.1:
+        new = {**config_entry.data}
+        new[CONF_ADDON_INTERFACE] = "auto"
+        new[CONF_ADDON_PARAMS] = None
+        hass.config_entries.async_update_entry(config_entry, data=new, minor_version=3, version=1)
+
+    _LOGGER.debug("Migration to version %s.%s successful", config_entry.version, config_entry.minor_version)
+
+    return True
 
 def _unique_id_from_status(device_info: IpmiDeviceInfo) -> str | None:
     """Find the best unique id value from the status."""

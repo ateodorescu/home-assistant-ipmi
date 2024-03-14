@@ -32,10 +32,33 @@ from .const import (
     DEFAULT_PASSWORD,
     DEFAULT_SCAN_INTERVAL,
     CONF_ADDON_PORT,
+    CONF_ADDON_INTERFACE,
+    CONF_ADDON_PARAMS,
     DEFAULT_ADDON_PORT,
+    DEFAULT_INTERFACE_TYPE,
     CONF_IPMI_SERVER_HOST,
     DEFAULT_IPMI_SERVER_HOST,
     DOMAIN,
+)
+
+_PORT_SELECTOR = vol.All(
+    selector.NumberSelector(
+        selector.NumberSelectorConfig(
+            min=1, max=65535, mode=selector.NumberSelectorMode.BOX
+        ),
+    ),
+    vol.Coerce(int),
+)
+
+_INTERFACE_SELECTOR = vol.All(
+    selector.SelectSelector(
+        selector.SelectSelectorConfig(
+            options=["auto", "lanplus", "lan", "imb", "open"],
+            multiple=False,
+            mode="dropdown"
+        ),
+    ),
+    vol.Coerce(str),
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -48,18 +71,15 @@ def _base_schema(discovery_info: zeroconf.ZeroconfServiceInfo | None) -> vol.Sch
             {
                 vol.Required(CONF_ALIAS, default=DEFAULT_ALIAS): cv.string,
                 vol.Required(CONF_HOST, default=DEFAULT_HOST): cv.string,
-                vol.Required(CONF_PORT, default=DEFAULT_PORT): cv.positive_int,
+                vol.Required(CONF_PORT, default=DEFAULT_PORT): _PORT_SELECTOR,
                 vol.Optional(CONF_USERNAME, default=DEFAULT_USERNAME): cv.string, 
                 vol.Optional(CONF_PASSWORD, default=DEFAULT_PASSWORD): cv.string,
+                vol.Optional(CONF_IPMI_SERVER_HOST, default=DEFAULT_IPMI_SERVER_HOST): cv.string,
+                vol.Optional(CONF_ADDON_PORT, default=DEFAULT_ADDON_PORT): cv.string,
+                vol.Optional(CONF_ADDON_INTERFACE, default=DEFAULT_INTERFACE_TYPE): _INTERFACE_SELECTOR,
+                vol.Optional(CONF_ADDON_PARAMS): cv.string,
             }
         )
-
-    base_schema.update(
-        {
-            vol.Optional(CONF_IPMI_SERVER_HOST, default=DEFAULT_IPMI_SERVER_HOST): cv.string,
-            vol.Optional(CONF_ADDON_PORT, default=DEFAULT_ADDON_PORT): cv.string,
-        }
-    )
 
     return vol.Schema(base_schema)
 
@@ -69,15 +89,21 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     Data has the keys from _base_schema with values provided by the user.
     """
 
-    host = data[CONF_HOST]
-    port = data[CONF_PORT]
-    alias = data[CONF_ALIAS]
-    username = data[CONF_USERNAME]
-    password = data[CONF_PASSWORD]
-    ipmi_server_host = data[CONF_IPMI_SERVER_HOST]
-    addon_port = data[CONF_ADDON_PORT]
-
-    ipmi_data = IpmiServer(hass, None, host, port, alias, username, password, ipmi_server_host, addon_port)
+    ipmi_data = IpmiServer(
+        hass, 
+        None, 
+        {
+            "host": data.get(CONF_HOST),
+            "port": data.get(CONF_PORT),
+            "alias": data.get(CONF_ALIAS),
+            "username": data.get(CONF_USERNAME),
+            "password": data.get(CONF_PASSWORD),
+            "ipmi_server_host": data.get(CONF_IPMI_SERVER_HOST),
+            "addon_port": data.get(CONF_ADDON_PORT),
+            "addon_interface": data.get(CONF_ADDON_INTERFACE),
+            "addon_extra_params": data.get(CONF_ADDON_PARAMS),
+        }
+    )
     await hass.async_add_executor_job(ipmi_data.update)
 
     if not (device_info := ipmi_data._device_info):
@@ -95,7 +121,8 @@ def _format_host_port_alias(user_input: Mapping[str, Any]) -> str:
 class IpmiConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for IPMI."""
 
-    VERSION = 1.1
+    VERSION = 2
+    MINOR_VERSION = 1
 
     def __init__(self) -> None:
         """Initialize the ipmi config flow."""

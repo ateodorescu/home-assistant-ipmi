@@ -76,25 +76,21 @@ class IpmiServer:
     def __init__(
         self,
         hass: HomeAssistant,
-        entry_id: str,
-        host: str,
-        port: int,
-        alias: str | None,
-        username: str | None,
-        password: str | None,
-        ipmi_server_host: str | None,
-        addon_port: str | None,
+        entry_id: str | None,
+        connection_data: dict,
     ) -> None:
         """Initialize the data object."""
 
         self._entry_id = entry_id
         self.hass = hass
-        self._host = host
-        self._port = port
-        self._alias = alias
-        self._username = username
-        self._password = password
-        self._addon_url = ipmi_server_host + ":" + addon_port
+        self._host = connection_data.get("host")
+        self._port = connection_data.get("port")
+        self._alias = connection_data.get("alias")
+        self._username = connection_data.get("username")
+        self._password = connection_data.get("password")
+        self._addon_url = connection_data.get("ipmi_server_host") + ":" + connection_data.get("addon_port")
+        self._addon_interface = connection_data.get("addon_interface")
+        self._addon_extra_params = connection_data.get("addon_extra_params")
         
 # when addon runs in dev mode (local web server)
 #         self._addon_url += '/repositories/home-assistant-addons/ipmi-server/rootfs/app/public'
@@ -122,6 +118,13 @@ class IpmiServer:
                 "user": self._username,
                 "password": self._password
             }
+
+            if self._addon_interface is not None and self._addon_interface != "auto":
+                params["interface"] = self._addon_interface
+
+            if self._addon_extra_params is not None and self._addon_extra_params != "":
+                params["extra"] = self._addon_extra_params
+
             url = self._addon_url
 
             if path is not None:
@@ -152,6 +155,7 @@ class IpmiServer:
                     "voltage": {},
                     "fan": {},
                     "power": {},
+                    "current": {},
                     "time": {}
                 },
                 "states": {},

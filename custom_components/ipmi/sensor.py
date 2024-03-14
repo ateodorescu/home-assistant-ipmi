@@ -20,6 +20,7 @@ from homeassistant.const import (
     UnitOfElectricPotential,
     UnitOfTemperature,
     UnitOfPower,
+    UnitOfElectricCurrent,
     UnitOfTime,
     REVOLUTIONS_PER_MINUTE
 )
@@ -119,110 +120,137 @@ async def create_entity_sensors(
     status = coordinator.data
     entities = []
 
-    for id in status.sensors.get("temperature"):
-        if (id in filter):
-            data.add_known_sensor(id)
+    if status.sensors.get("temperature") is not None:
+        for id in status.sensors.get("temperature"):
+            if (id in filter):
+                data.add_known_sensor(id)
 
-            entities.append(
-                IpmiSensor(
-                    coordinator,
-                    SensorEntityDescription(
-                        key=id,
-                        name=status.sensors["temperature"][id],
-                        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-                        device_class=SensorDeviceClass.TEMPERATURE,
-                        state_class=SensorStateClass.MEASUREMENT,
-                        # entity_category=EntityCategory.DIAGNOSTIC,
-                        entity_registry_enabled_default=True,
-                    ),
-                    data,
-                    unique_id,
+                entities.append(
+                    IpmiSensor(
+                        coordinator,
+                        SensorEntityDescription(
+                            key=id,
+                            name=status.sensors["temperature"][id],
+                            native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+                            device_class=SensorDeviceClass.TEMPERATURE,
+                            state_class=SensorStateClass.MEASUREMENT,
+                            # entity_category=EntityCategory.DIAGNOSTIC,
+                            entity_registry_enabled_default=True,
+                        ),
+                        data,
+                        unique_id,
+                    )
                 )
-            )
 
-    for id in status.sensors.get("voltage"):
-        if (id in filter):
-            data.add_known_sensor(id)
+    if status.sensors.get("voltage") is not None:
+        for id in status.sensors.get("voltage"):
+            if (id in filter):
+                data.add_known_sensor(id)
 
-            entities.append(
-                IpmiSensor(
-                    coordinator,
-                    SensorEntityDescription(
-                        key=id,
-                        name=status.sensors["voltage"][id],
-                        native_unit_of_measurement=UnitOfElectricPotential.VOLT,
-                        device_class=SensorDeviceClass.VOLTAGE,
-                        state_class=SensorStateClass.MEASUREMENT,
-                        # entity_category=EntityCategory.DIAGNOSTIC,
-                        entity_registry_enabled_default=True,
-                    ),
-                    data,
-                    unique_id,
+                entities.append(
+                    IpmiSensor(
+                        coordinator,
+                        SensorEntityDescription(
+                            key=id,
+                            name=status.sensors["voltage"][id],
+                            native_unit_of_measurement=UnitOfElectricPotential.VOLT,
+                            device_class=SensorDeviceClass.VOLTAGE,
+                            state_class=SensorStateClass.MEASUREMENT,
+                            # entity_category=EntityCategory.DIAGNOSTIC,
+                            entity_registry_enabled_default=True,
+                        ),
+                        data,
+                        unique_id,
+                    )
                 )
-            )
 
-    for id in status.sensors.get("fan"):
-        if (id in filter):
-            data.add_known_sensor(id)
+    if status.sensors.get("fan") is not None:
+        for id in status.sensors.get("fan"):
+            if (id in filter):
+                data.add_known_sensor(id)
 
-            entities.append(
-                IpmiSensor(
-                    coordinator,
-                    SensorEntityDescription(
-                        key=id,
-                        name=status.sensors["fan"][id],
-                        icon="mdi:fan",
-                        native_unit_of_measurement=REVOLUTIONS_PER_MINUTE,
-                        state_class=SensorStateClass.MEASUREMENT,
-                        # entity_category=EntityCategory.DIAGNOSTIC,
-                        entity_registry_enabled_default=True,
-                    ),
-                    data,
-                    unique_id,
+                entities.append(
+                    IpmiSensor(
+                        coordinator,
+                        SensorEntityDescription(
+                            key=id,
+                            name=status.sensors["fan"][id],
+                            icon="mdi:fan",
+                            native_unit_of_measurement=REVOLUTIONS_PER_MINUTE,
+                            state_class=SensorStateClass.MEASUREMENT,
+                            # entity_category=EntityCategory.DIAGNOSTIC,
+                            entity_registry_enabled_default=True,
+                        ),
+                        data,
+                        unique_id,
+                    )
                 )
-            )
 
-    for id in status.sensors.get("power"):
-        if (id in filter):
-            data.add_known_sensor(id)
+    if status.sensors.get("power") is not None:
+        for id in status.sensors.get("power"):
+            if (id in filter):
+                data.add_known_sensor(id)
 
-            entities.append(
-                IpmiSensor(
-                    coordinator,
-                    SensorEntityDescription(
-                        key=id,
-                        name=status.sensors["power"][id],
-                        native_unit_of_measurement=UnitOfPower.WATT,
-                        device_class=SensorDeviceClass.POWER,
-                        state_class=SensorStateClass.MEASUREMENT,
-                        # entity_category=EntityCategory.DIAGNOSTIC,
-                        entity_registry_enabled_default=True,
-                    ),
-                    data,
-                    unique_id,
+                entities.append(
+                    IpmiSensor(
+                        coordinator,
+                        SensorEntityDescription(
+                            key=id,
+                            name=status.sensors["power"][id],
+                            native_unit_of_measurement=UnitOfPower.WATT,
+                            device_class=SensorDeviceClass.POWER,
+                            state_class=SensorStateClass.MEASUREMENT,
+                            # entity_category=EntityCategory.DIAGNOSTIC,
+                            entity_registry_enabled_default=True,
+                        ),
+                        data,
+                        unique_id,
+                    )
                 )
-            )
 
-    for id in status.sensors.get("time"):
-        if (id in filter):
-            data.add_known_sensor(id)
+    if status.sensors.get("current") is not None:
+        for id in status.sensors.get("current"):
+            if (id in filter):
+                data.add_known_sensor(id)
 
-            entities.append(
-                IpmiSensor(
-                    coordinator,
-                    SensorEntityDescription(
-                        key=id,
-                        name=status.sensors["time"][id],
-                        native_unit_of_measurement=UnitOfTime.SECONDS,
-                        device_class=SensorDeviceClass.DURATION,
-                        state_class=SensorStateClass.MEASUREMENT,
-                        # entity_category=EntityCategory.DIAGNOSTIC,
-                        entity_registry_enabled_default=True,
-                    ),
-                    data,
-                    unique_id,
+                entities.append(
+                    IpmiSensor(
+                        coordinator,
+                        SensorEntityDescription(
+                            key=id,
+                            name=status.sensors["current"][id],
+                            native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
+                            device_class=SensorDeviceClass.CURRENT,
+                            state_class=SensorStateClass.MEASUREMENT,
+                            # entity_category=EntityCategory.DIAGNOSTIC,
+                            entity_registry_enabled_default=True,
+                        ),
+                        data,
+                        unique_id,
+                    )
                 )
-            )
+
+    if status.sensors.get("time") is not None:
+        for id in status.sensors.get("time"):
+            if (id in filter):
+                data.add_known_sensor(id)
+
+                entities.append(
+                    IpmiSensor(
+                        coordinator,
+                        SensorEntityDescription(
+                            key=id,
+                            name=status.sensors["time"][id],
+                            native_unit_of_measurement=UnitOfTime.SECONDS,
+                            device_class=SensorDeviceClass.DURATION,
+                            state_class=SensorStateClass.MEASUREMENT,
+                            # entity_category=EntityCategory.DIAGNOSTIC,
+                            entity_registry_enabled_default=True,
+                        ),
+                        data,
+                        unique_id,
+                    )
+                )
 
     async_add_entities(entities, True)
 
