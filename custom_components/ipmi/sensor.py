@@ -78,6 +78,7 @@ async def async_setup_entry(
         coordinator = ipmiserver[COORDINATOR]
         data = ipmiserver[IPMI_DATA]
         unique_id = ipmiserver[IPMI_UNIQUE_ID]
+
         async_add_entities([
             IpmiSensor(
                 coordinator,
@@ -92,12 +93,12 @@ async def async_setup_entry(
             )
         ])
 
-        _LOGGER.debug("Sensors added")
+        _LOGGER.debug("State sensor added")
 
         @callback
-        async def async_new_sensors(new_entities):
+        def async_new_sensors() -> None:
             """Set up IPMI sensors."""
-            await create_entity_sensors(ipmiserver, new_entities, async_add_entities)
+            create_entity_sensors(ipmiserver, async_add_entities)
 
         get_ipmi_data(hass)[DISPATCHERS][server_id].append(
             async_dispatcher_connect(
@@ -106,12 +107,12 @@ async def async_setup_entry(
                 async_new_sensors,
             )
         )
-        _LOGGER.debug("New entity listener created")
+        _LOGGER.debug("Entity listener created")
+        async_new_sensors()
 
 @callback
-async def create_entity_sensors(
+def create_entity_sensors(
     ipmi_data: object, 
-    filter: list,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     coordinator = ipmi_data[COORDINATOR]
@@ -120,9 +121,12 @@ async def create_entity_sensors(
     status = coordinator.data
     entities = []
 
+    _LOGGER.debug("Let's add unknown sensors")
+
     if status.sensors.get("temperature") is not None:
         for id in status.sensors.get("temperature"):
-            if (id in filter):
+            if (not data.is_known_sensor(id)):
+                _LOGGER.debug("%s sensor will be added", id)
                 data.add_known_sensor(id)
 
                 entities.append(
@@ -144,7 +148,8 @@ async def create_entity_sensors(
 
     if status.sensors.get("voltage") is not None:
         for id in status.sensors.get("voltage"):
-            if (id in filter):
+            if (not data.is_known_sensor(id)):
+                _LOGGER.debug("%s sensor will be added", id)
                 data.add_known_sensor(id)
 
                 entities.append(
@@ -166,7 +171,8 @@ async def create_entity_sensors(
 
     if status.sensors.get("fan") is not None:
         for id in status.sensors.get("fan"):
-            if (id in filter):
+            if (not data.is_known_sensor(id)):
+                _LOGGER.debug("%s sensor will be added", id)
                 data.add_known_sensor(id)
 
                 entities.append(
@@ -188,7 +194,8 @@ async def create_entity_sensors(
 
     if status.sensors.get("power") is not None:
         for id in status.sensors.get("power"):
-            if (id in filter):
+            if (not data.is_known_sensor(id)):
+                _LOGGER.debug("%s sensor will be added", id)
                 data.add_known_sensor(id)
 
                 entities.append(
@@ -210,7 +217,8 @@ async def create_entity_sensors(
 
     if status.sensors.get("current") is not None:
         for id in status.sensors.get("current"):
-            if (id in filter):
+            if (not data.is_known_sensor(id)):
+                _LOGGER.debug("%s sensor will be added", id)
                 data.add_known_sensor(id)
 
                 entities.append(
@@ -232,7 +240,8 @@ async def create_entity_sensors(
 
     if status.sensors.get("time") is not None:
         for id in status.sensors.get("time"):
-            if (id in filter):
+            if (not data.is_known_sensor(id)):
+                _LOGGER.debug("%s sensor will be added", id)
                 data.add_known_sensor(id)
 
                 entities.append(
@@ -253,7 +262,6 @@ async def create_entity_sensors(
                 )
 
     async_add_entities(entities, True)
-
 
 
 class IpmiSensor(CoordinatorEntity[DataUpdateCoordinator[dict[str, str]]], SensorEntity):
@@ -312,6 +320,6 @@ class IpmiSensor(CoordinatorEntity[DataUpdateCoordinator[dict[str, str]]], Senso
             state = status.states.get(self.entity_description.key, None)
 
             if state is not None:
-                return state
+                return float(state)
             else:
                 return STATE_UNKNOWN

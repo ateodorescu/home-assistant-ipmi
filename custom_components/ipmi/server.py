@@ -302,9 +302,11 @@ class IpmiServer:
                 if (len(new_sensors) > 0):
                     async_dispatcher_send(
                         self.hass,
-                        IPMI_NEW_SENSOR_SIGNAL.format(self._entry_id),
-                        new_sensors,
+                        IPMI_NEW_SENSOR_SIGNAL.format(self._entry_id)
                     )
+
+    def is_known_sensor(self, id: str) -> bool:
+        return self._known_sensors.count(id) > 0
 
     def add_known_sensor(self, id: str) -> None:
         if self._known_sensors.count(id) == 0:
