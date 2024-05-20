@@ -5,7 +5,7 @@ import requests
 from dataclasses import dataclass
 from datetime import timedelta
 import logging
-from typing import cast
+from typing import Any, Mapping, cast
 import pyipmi
 import pyipmi.interfaces
 from pyipmi.errors import IpmiConnectionError
@@ -28,11 +28,11 @@ from homeassistant.const import (
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import device_registry as dr, template
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.helpers.dispatcher import (
     async_dispatcher_connect,
-    async_dispatcher_send,
+    dispatcher_send,
 )
 
 from .const import (
@@ -300,7 +300,7 @@ class IpmiServer:
                         new_sensors.append(id)
 
                 if (len(new_sensors) > 0):
-                    async_dispatcher_send(
+                    dispatcher_send(
                         self.hass,
                         IPMI_NEW_SENSOR_SIGNAL.format(self._entry_id)
                     )
@@ -341,3 +341,29 @@ class IpmiServer:
 
         if (json is None):
             self.runRmcpCommand(pyipmi.chassis.CONTROL_SOFT_SHUTDOWN)
+
+    def send_command(self, command: str, ignore_errors: bool) -> str:
+        cmd = command.replace("$host$", self._host)
+        cmd = cmd.replace("$port$", str(self._port))
+        cmd = cmd.replace("$username$", self._username)
+        cmd = cmd.replace("$password$", self._password)
+
+        uri_encoded = requests.utils.quote(cmd)
+        response = self.getFromAddon("command?params=" + uri_encoded)
+
+        if (response is None):
+            err = "Error executing command: {}", command.format(command)
+            if (ignore_errors):
+                _LOGGER.error(err)
+            else:
+                raise Exception(err)
+        
+        if (response["success"] == False):
+            err = "Error executing command: {}, Error: {}".format(command, response["output"])
+            if (ignore_errors):
+                _LOGGER.error(err)
+            else:
+                raise Exception(err)
+        
+        return response["output"]
+        
