@@ -39,3 +39,6 @@ The following `actions` are added:
 - soft shutdown
 
 The `switch` allows you to turn on the server and shut it down gracefully.
+
+There is a `send command` service available too, which allows you to send custom commands
+to the server. This works only when the `ipmi-server` addon is used.
