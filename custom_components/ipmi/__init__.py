@@ -23,8 +23,6 @@ import pyipmi.interfaces
 from pyipmi.errors import IpmiConnectionError
 import pyipmi.sensor
 import re
-
-from homeassistant.core import HomeAssistant
 from homeassistant.helpers.typing import ConfigType
 
 # The domain of your component. Should be equal to the name of your component.
@@ -38,9 +36,9 @@ from homeassistant.const import (
     CONF_SCAN_INTERVAL,
     CONF_USERNAME,
 )
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, SupportsResponse, ServiceResponse
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import config_validation as cv, device_registry as dr, entity_platform
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.helpers.dispatcher import (
     async_dispatcher_connect,
@@ -66,21 +64,35 @@ from .const import (
     INTEGRATION_SUPPORTED_COMMANDS,
     SERVERS,
     DISPATCHERS,
-    IPMI_DEV_INFO_TO_DEV_INFO
+    IPMI_DEV_INFO_TO_DEV_INFO,
+    SERVICE_SEND_COMMAND
 )
 
-from .helpers import IpmiData, get_ipmi_data
+from .helpers import IpmiData, get_ipmi_data, get_ipmi_server
 from .server import IpmiDeviceInfo, IpmiServer
+
+import voluptuous as vol
 
 _LOGGER = logging.getLogger(__name__)
 
-async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+def setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up the IPMI component."""
     hass_data = IpmiData(
         servers={},
         dispatchers={}
     )
     hass.data.setdefault(DOMAIN, hass_data)
+
+    def handle_send_command(call) -> ServiceResponse:
+        """Handle the service call."""
+        server = get_ipmi_server(hass, call.data.get("server"))
+        message = server[IPMI_DATA].send_command(call.data.get("command"), call.data.get("ignore_errors", False))
+
+        return {
+            "message": message
+        }
+
+    hass.services.register(DOMAIN, SERVICE_SEND_COMMAND, handle_send_command, supports_response=SupportsResponse.ONLY)
 
     return True
 

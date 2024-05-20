@@ -1,0 +1,20 @@
+send_command:
+  fields:
+    server:
+      required: true
+      selector:
+        config_entry:
+          integration: ipmi
+    command:
+      required: true
+      default: "-I lanplus -H $host$ -U $username$ -P $password$ bmc info"
+      selector:
+        text:
+          autocomplete: "off"
+          type: "text"
+    ignore_errors:
+      required: false
+      default: false
+      selector:
+        boolean:
+      

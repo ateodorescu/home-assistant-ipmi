@@ -48,5 +48,25 @@
             "power_reset": "Power reset",
             "soft_shutdown": "Soft shutdown"
         }
+    },
+    "services": {
+        "send_command": {
+            "name": "Send custom command",
+            "description": "Sends a custom command to the IPMI server",
+            "fields": {
+                "server": {
+                    "name": "Server",
+                    "description": "The server to send the command to"
+                },
+                "command": {
+                    "name": "Command",
+                    "description": "The command to send"
+                },
+                "ignore_errors": {
+                    "name": "Ignore errors",
+                    "description": "Ignore errors when sending the command. Some raw commands may return an error, but still be successful. Only use this if you know what you are doing."
+                }
+            }
+        }
     }
 }
