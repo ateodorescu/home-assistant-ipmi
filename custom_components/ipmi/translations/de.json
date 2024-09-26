@@ -1,0 +1,72 @@
+{
+    "config": {
+        "abort": {
+            "already_configured": "Gerät ist bereits konfiguriert"
+        },
+        "error": {
+            "cannot_connect": "Verbindung fehlgeschlagen",
+            "unknown": "Unerwarteter Fehler"
+        },
+        "step": {
+            "user": {
+                "data": {
+                    "alias": "Alias",
+                    "host": "Host",
+                    "password": "Passwort",
+                    "port": "Port",
+                    "username": "Benutzername",
+                    "ipmi_server_host": "ipmi-server Host (wenn ipmi-server verwendet wird)",
+                    "addon_port": "Addon-Port (wenn ipmi-server Addon verwendet wird)",
+                    "addon_interface": "Addon-Schnittstellentyp für ipmitool",
+                    "addon_extra_params": "Zusätzliche Addon-Parameter für ipmitool (vielleicht Cypher?)"
+                },
+                "title": "Mit dem IPMI Server verbinden"
+            }
+        }
+    },
+    "entity": {
+        "switch": {
+            "chassis": {
+                "name": "Einschalten/Soft-Abschaltung"
+            }
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "data": {
+                    "scan_interval": "Scan-Intervall (Sekunden)"
+                }
+            }
+        }
+    },
+    "device_automation": {
+        "action_type": {
+            "power_on": "Einschalten",
+            "power_off": "Ausschalten",
+            "power_cycle": "Neustarten",
+            "power_reset": "Zurücksetzen",
+            "soft_shutdown": "Soft-Abschaltung"
+        }
+    },
+    "services": {
+        "send_command": {
+            "name": "Sende benutzerdefinierten Befehl",
+            "description": "Sendet einen benutzerdefinierten Befehl an den IPMI Server",
+            "fields": {
+                "server": {
+                    "name": "Server",
+                    "description": "Der Server, an den der Befehl gesendet wird"
+                },
+                "command": {
+                    "name": "Befehl",
+                    "description": "Der Befehl, der gesendet werden soll"
+                },
+                "ignore_errors": {
+                    "name": "Fehler ignorieren",
+                    "description": "Ignoriere Fehler beim Senden des Befehls. Einige Befehle können Fehler zurückgeben, aber trotzdem erfolgreich sein. Verwenden Sie dies nur, wenn Sie wissen, was Sie tun."
+                }
+            }
+        }
+    }
+}
