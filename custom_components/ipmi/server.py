@@ -110,6 +110,9 @@ class IpmiServer:
         return self._device_info
 
     def getFromAddon(self, path: str | None):
+        if self._addon_url is None or self._addon_url == "":
+            return None
+
         response = None
 
         try:    
