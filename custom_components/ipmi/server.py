@@ -88,6 +88,7 @@ class IpmiServer:
         self._alias = connection_data.get("alias")
         self._username = connection_data.get("username")
         self._password = connection_data.get("password")
+        self._role = connection_data.get("role")
         self._addon_url = connection_data.get("ipmi_server_host") + ":" + connection_data.get("addon_port")
         self._addon_interface = connection_data.get("addon_interface")
         self._addon_extra_params = connection_data.get("addon_extra_params")
@@ -116,14 +117,19 @@ class IpmiServer:
                 "host": self._host,
                 "port": self._port,
                 "user": self._username,
-                "password": self._password
+                "password": self._password,
+                "role": self._role
             }
 
             if self._addon_interface is not None and self._addon_interface != "auto":
                 params["interface"] = self._addon_interface
 
+            # Compatibility bridge for people who have not yet updated to new addon.
+            # @deprecated: Remove in next major version of this component
+            params["extra"] = f"-L {self._role}"
+
             if self._addon_extra_params is not None and self._addon_extra_params != "":
-                params["extra"] = self._addon_extra_params
+                params["extra"] = f"{params["extra"]} {self._addon_extra_params}"
 
             url = self._addon_url
 
@@ -252,6 +258,7 @@ class IpmiServer:
         ipmi = pyipmi.create_connection(interface)
         ipmi.session.set_session_type_rmcp(self._host, self._port)
         ipmi.session.set_auth_type_user(self._username, self._password)
+        ipmi.session.set_priv_level(self._role)
         ipmi.session.establish()
         ipmi.target = pyipmi.Target(ipmb_address=0x20)
 
@@ -347,6 +354,7 @@ class IpmiServer:
         cmd = cmd.replace("$port$", str(self._port))
         cmd = cmd.replace("$username$", self._username)
         cmd = cmd.replace("$password$", self._password)
+        cmd = cmd.replace("$role", self._role)
 
         uri_encoded = requests.utils.quote(cmd)
         response = self.getFromAddon("command?params=" + uri_encoded)

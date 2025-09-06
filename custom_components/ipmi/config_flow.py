@@ -39,6 +39,8 @@ from .const import (
     CONF_IPMI_SERVER_HOST,
     DEFAULT_IPMI_SERVER_HOST,
     DOMAIN,
+    DEFAULT_ROLE,
+    CONF_ROLE,
 )
 
 _PORT_SELECTOR = vol.All(
@@ -61,6 +63,17 @@ _INTERFACE_SELECTOR = vol.All(
     vol.Coerce(str),
 )
 
+_ROLE_SELECTOR = vol.All(
+    selector.SelectSelector(
+        selector.SelectSelectorConfig(
+            options=["ADMINISTRATOR", "OPERATOR", "USER"],
+            multiple=False,
+            mode="dropdown"
+        ),
+    ),
+    vol.Coerce(str),
+)
+
 _LOGGER = logging.getLogger(__name__)
 
 def _base_schema(discovery_info: zeroconf.ZeroconfServiceInfo | None) -> vol.Schema:
@@ -74,6 +87,7 @@ def _base_schema(discovery_info: zeroconf.ZeroconfServiceInfo | None) -> vol.Sch
                 vol.Required(CONF_PORT, default=DEFAULT_PORT): _PORT_SELECTOR,
                 vol.Optional(CONF_USERNAME, default=DEFAULT_USERNAME): cv.string, 
                 vol.Optional(CONF_PASSWORD, default=DEFAULT_PASSWORD): cv.string,
+                vol.Optional(CONF_ROLE, default=DEFAULT_ROLE): _ROLE_SELECTOR,
                 vol.Optional(CONF_IPMI_SERVER_HOST, default=DEFAULT_IPMI_SERVER_HOST): cv.string,
                 vol.Optional(CONF_ADDON_PORT, default=DEFAULT_ADDON_PORT): cv.string,
                 vol.Optional(CONF_ADDON_INTERFACE, default=DEFAULT_INTERFACE_TYPE): _INTERFACE_SELECTOR,
@@ -98,6 +112,7 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
             "alias": data.get(CONF_ALIAS),
             "username": data.get(CONF_USERNAME),
             "password": data.get(CONF_PASSWORD),
+            "role": data.get(CONF_PASSWORD),
             "ipmi_server_host": data.get(CONF_IPMI_SERVER_HOST),
             "addon_port": data.get(CONF_ADDON_PORT),
             "addon_interface": data.get(CONF_ADDON_INTERFACE),
@@ -121,7 +136,7 @@ def _format_host_port_alias(user_input: Mapping[str, Any]) -> str:
 class IpmiConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for IPMI."""
 
-    VERSION = 2
+    VERSION = 4
     MINOR_VERSION = 1
 
     def __init__(self) -> None:

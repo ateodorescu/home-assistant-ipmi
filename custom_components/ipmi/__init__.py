@@ -65,7 +65,9 @@ from .const import (
     SERVERS,
     DISPATCHERS,
     IPMI_DEV_INFO_TO_DEV_INFO,
-    SERVICE_SEND_COMMAND
+    SERVICE_SEND_COMMAND,
+    DEFAULT_ROLE,
+    CONF_ROLE
 )
 
 from .helpers import IpmiData, get_ipmi_data, get_ipmi_server
@@ -127,6 +129,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             "alias": config.get(CONF_ALIAS),
             "username": config.get(CONF_USERNAME),
             "password": config.get(CONF_PASSWORD),
+            "role": config.get(CONF_ROLE),
             "ipmi_server_host": ipmi_server_host,
             "addon_port": config.get(CONF_ADDON_PORT),
             "addon_interface": config.get(CONF_ADDON_INTERFACE),
@@ -184,7 +187,7 @@ async def async_migrate_entry(hass, config_entry: ConfigEntry):
     """Migrate old entry."""
     _LOGGER.debug("Migrating from version %s", config_entry.version)
 
-    if config_entry.version > 1.1:
+    if config_entry.version > 1:
       # This means the user has downgraded from a future version
       return True
 
@@ -192,7 +195,14 @@ async def async_migrate_entry(hass, config_entry: ConfigEntry):
         new = {**config_entry.data}
         new[CONF_ADDON_INTERFACE] = "auto"
         new[CONF_ADDON_PARAMS] = None
-        hass.config_entries.async_update_entry(config_entry, data=new, minor_version=3, version=1)
+        hass.config_entries.async_update_entry(config_entry, data=new, minor_version=2, version=1)
+
+    # In the last migration of the config was a typo. It set the minor_version=3 even
+    # though the config_flow was set up to add version 1.2 configs. We are mitigating this here.
+    if config_entry.version == 1.3 or config_entry.version == 1.2:
+        new = {**config_entry.data}
+        new[CONF_ROLE] = DEFAULT_ROLE
+        hass.config_entries.async_update_entry(config_entry, data=new, minor_version=4, version=1)
 
     _LOGGER.debug("Migration to version %s.%s successful", config_entry.version, config_entry.minor_version)
 
