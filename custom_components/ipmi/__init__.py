@@ -13,6 +13,7 @@ ipmi:
 from __future__ import annotations
 
 import async_timeout
+import argparse
 import requests
 from dataclasses import dataclass
 from datetime import timedelta
@@ -201,7 +202,18 @@ async def async_migrate_entry(hass, config_entry: ConfigEntry):
     # though the config_flow was set up to add version 1.2 configs. We are mitigating this here.
     if config_entry.version == 1.3 or config_entry.version == 1.2:
         new = {**config_entry.data}
+
         new[CONF_ROLE] = DEFAULT_ROLE
+
+        # Migrate people that possibly have used the role workaround in the addon additional parameters
+        if new[CONF_ADDON_PARAMS] is not None and new[CONF_ADDON_PARAMS] != "":
+            parser = argparse.ArgumentParser()
+            parser.add_argument('-L')
+            parsed_parameters, leftover_parameters = parser.parse_known_args(new[CONF_ADDON_PARAMS].split())
+
+            new[CONF_ROLE] = parsed_parameters.L if parsed_parameters.L is not None else DEFAULT_ROLE
+            new[CONF_ADDON_PARAMS] = " ".join(leftover_parameters) if parsed_parameters.L is not None else new[CONF_ADDON_PARAMS]
+
         hass.config_entries.async_update_entry(config_entry, data=new, minor_version=4, version=1)
 
     _LOGGER.debug("Migration to version %s.%s successful", config_entry.version, config_entry.minor_version)
