@@ -9,6 +9,8 @@
           "port": "[%key:common::config_flow::data::port%]",
           "username": "[%key:common::config_flow::data::username%]",
           "password": "[%key:common::config_flow::data::password%]",
+          "kg_key": "Kg encryption key",
+          "privilege_level": "Privilege level",
           "ipmi_server_host": "[%key:common::config_flow::data::ipmi_server_host%]",
           "addon_port": "[%key:common::config_flow::data::addon_port%]",
           "addon_interface": "[%key:common::config_flow::data::addon_interface%]",

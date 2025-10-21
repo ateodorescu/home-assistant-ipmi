@@ -34,6 +34,11 @@ from .const import (
     CONF_ADDON_PORT,
     CONF_ADDON_INTERFACE,
     CONF_ADDON_PARAMS,
+    CONF_KG_KEY,
+    DEFAULT_KG_KEY,
+    CONF_PRIVILEGE_LEVEL,
+    DEFAULT_PRIVILEGE_LEVEL,
+    PRIVILEGE_LEVELS,
     DEFAULT_ADDON_PORT,
     DEFAULT_INTERFACE_TYPE,
     CONF_IPMI_SERVER_HOST,
@@ -61,7 +66,37 @@ _INTERFACE_SELECTOR = vol.All(
     vol.Coerce(str),
 )
 
+_PRIVILEGE_LEVEL_SELECTOR = vol.All(
+    selector.SelectSelector(
+        selector.SelectSelectorConfig(
+            options=PRIVILEGE_LEVELS,
+            multiple=False,
+            mode="dropdown"
+        ),
+    ),
+    vol.Coerce(str),
+)
+
 _LOGGER = logging.getLogger(__name__)
+
+def _validate_kg_key(value: str) -> str:
+    """Validate the Kg key is valid hex and proper length."""
+    if not value:
+        return value
+    # Remove any whitespace
+    value = value.strip()
+    # Must be even number of hex characters (valid octets)
+    if len(value) % 2 != 0:
+        raise vol.Invalid("Kg key must have an even number of hexadecimal characters (valid octets)")
+    # Must be at most 40 hex characters (20 bytes max for IPMI v2.0/RMCP+)
+    if len(value) > 40:
+        raise vol.Invalid("Kg key must be at most 40 hexadecimal characters (20 bytes)")
+    # Must be valid hex
+    try:
+        int(value, 16)
+    except ValueError:
+        raise vol.Invalid("Kg key must contain only hexadecimal characters (0-9, A-F)")
+    return value.upper()
 
 def _base_schema(discovery_info: zeroconf.ZeroconfServiceInfo | None) -> vol.Schema:
     """Generate base schema."""
@@ -74,6 +109,8 @@ def _base_schema(discovery_info: zeroconf.ZeroconfServiceInfo | None) -> vol.Sch
                 vol.Required(CONF_PORT, default=DEFAULT_PORT): _PORT_SELECTOR,
                 vol.Optional(CONF_USERNAME, default=DEFAULT_USERNAME): cv.string, 
                 vol.Optional(CONF_PASSWORD, default=DEFAULT_PASSWORD): cv.string,
+                vol.Optional(CONF_KG_KEY, default=DEFAULT_KG_KEY): vol.All(cv.string, _validate_kg_key),
+                vol.Optional(CONF_PRIVILEGE_LEVEL, default=DEFAULT_PRIVILEGE_LEVEL): _PRIVILEGE_LEVEL_SELECTOR,
                 vol.Optional(CONF_IPMI_SERVER_HOST, default=DEFAULT_IPMI_SERVER_HOST): cv.string,
                 vol.Optional(CONF_ADDON_PORT, default=DEFAULT_ADDON_PORT): cv.string,
                 vol.Optional(CONF_ADDON_INTERFACE, default=DEFAULT_INTERFACE_TYPE): _INTERFACE_SELECTOR,
@@ -98,6 +135,8 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
             "alias": data.get(CONF_ALIAS),
             "username": data.get(CONF_USERNAME),
             "password": data.get(CONF_PASSWORD),
+            "kg_key": data.get(CONF_KG_KEY),
+            "privilege_level": data.get(CONF_PRIVILEGE_LEVEL),
             "ipmi_server_host": data.get(CONF_IPMI_SERVER_HOST),
             "addon_port": data.get(CONF_ADDON_PORT),
             "addon_interface": data.get(CONF_ADDON_INTERFACE),
@@ -122,7 +161,7 @@ class IpmiConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for IPMI."""
 
     VERSION = 2
-    MINOR_VERSION = 1
+    MINOR_VERSION = 2
 
     def __init__(self) -> None:
         """Initialize the ipmi config flow."""

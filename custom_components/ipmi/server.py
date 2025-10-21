@@ -88,6 +88,8 @@ class IpmiServer:
         self._alias = connection_data.get("alias")
         self._username = connection_data.get("username")
         self._password = connection_data.get("password")
+        self._kg_key = connection_data.get("kg_key")
+        self._privilege_level = connection_data.get("privilege_level")
         self._addon_url = connection_data.get("ipmi_server_host") + ":" + connection_data.get("addon_port")
         self._addon_interface = connection_data.get("addon_interface")
         self._addon_extra_params = connection_data.get("addon_extra_params")
@@ -121,6 +123,12 @@ class IpmiServer:
 
             if self._addon_interface is not None and self._addon_interface != "auto":
                 params["interface"] = self._addon_interface
+
+            if self._kg_key is not None and self._kg_key != "":
+                params["kg_key"] = self._kg_key
+
+            if self._privilege_level is not None and self._privilege_level != "":
+                params["privilege_level"] = self._privilege_level
 
             if self._addon_extra_params is not None and self._addon_extra_params != "":
                 params["extra"] = self._addon_extra_params
@@ -252,6 +260,24 @@ class IpmiServer:
         ipmi = pyipmi.create_connection(interface)
         ipmi.session.set_session_type_rmcp(self._host, self._port)
         ipmi.session.set_auth_type_user(self._username, self._password)
+        
+        # Set Kg key if provided (for encrypted connections)
+        if self._kg_key and self._kg_key != "":
+            # Convert hex string to bytes for pyipmi (ipmitool uses hex string directly via -y flag)
+            kg_bytes = bytes.fromhex(self._kg_key)
+            ipmi.session.set_kg(kg_bytes)
+        
+        # Set privilege level if provided
+        if self._privilege_level and self._privilege_level != "":
+            # Map privilege level string to pyipmi constant
+            privilege_map = {
+                "ADMINISTRATOR": 4,
+                "OPERATOR": 3,
+                "USER": 2,
+            }
+            priv_level = privilege_map.get(self._privilege_level, 4)  # Default to ADMINISTRATOR
+            ipmi.session.set_priv_level(priv_level)
+        
         ipmi.session.establish()
         ipmi.target = pyipmi.Target(ipmb_address=0x20)
 
