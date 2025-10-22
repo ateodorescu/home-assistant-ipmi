@@ -109,7 +109,7 @@ def _base_schema(discovery_info: zeroconf.ZeroconfServiceInfo | None) -> vol.Sch
                 vol.Required(CONF_PORT, default=DEFAULT_PORT): _PORT_SELECTOR,
                 vol.Optional(CONF_USERNAME, default=DEFAULT_USERNAME): cv.string, 
                 vol.Optional(CONF_PASSWORD, default=DEFAULT_PASSWORD): cv.string,
-                vol.Optional(CONF_KG_KEY, default=DEFAULT_KG_KEY): vol.All(cv.string, _validate_kg_key),
+                vol.Optional(CONF_KG_KEY, default=DEFAULT_KG_KEY): cv.string,
                 vol.Optional(CONF_PRIVILEGE_LEVEL, default=DEFAULT_PRIVILEGE_LEVEL): _PRIVILEGE_LEVEL_SELECTOR,
                 vol.Optional(CONF_IPMI_SERVER_HOST, default=DEFAULT_IPMI_SERVER_HOST): cv.string,
                 vol.Optional(CONF_ADDON_PORT, default=DEFAULT_ADDON_PORT): cv.string,
@@ -125,6 +125,12 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
 
     Data has the keys from _base_schema with values provided by the user.
     """
+    
+    # Validate Kg key if provided
+    kg_key = data.get(CONF_KG_KEY, "")
+    if kg_key:
+        kg_key = _validate_kg_key(kg_key)
+        data[CONF_KG_KEY] = kg_key
 
     ipmi_data = IpmiServer(
         hass, 
