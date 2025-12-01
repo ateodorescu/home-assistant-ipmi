@@ -54,6 +54,10 @@ from .const import (
     CONF_IPMI_SERVER_HOST,
     CONF_ADDON_INTERFACE,
     CONF_ADDON_PARAMS,
+    CONF_KG_KEY,
+    DEFAULT_KG_KEY,
+    CONF_PRIVILEGE_LEVEL,
+    DEFAULT_PRIVILEGE_LEVEL,
     DOMAIN,
     PLATFORMS,
     IPMI_DATA,
@@ -127,6 +131,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             "alias": config.get(CONF_ALIAS),
             "username": config.get(CONF_USERNAME),
             "password": config.get(CONF_PASSWORD),
+            "kg_key": config.get(CONF_KG_KEY, DEFAULT_KG_KEY),
+            "privilege_level": config.get(CONF_PRIVILEGE_LEVEL, DEFAULT_PRIVILEGE_LEVEL),
             "ipmi_server_host": ipmi_server_host,
             "addon_port": config.get(CONF_ADDON_PORT),
             "addon_interface": config.get(CONF_ADDON_INTERFACE),
@@ -182,17 +188,27 @@ async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> Non
 
 async def async_migrate_entry(hass, config_entry: ConfigEntry):
     """Migrate old entry."""
-    _LOGGER.debug("Migrating from version %s", config_entry.version)
+    _LOGGER.debug("Migrating from version %s.%s", config_entry.version, config_entry.minor_version)
 
-    if config_entry.version > 1.1:
+    if config_entry.version > 2:
       # This means the user has downgraded from a future version
       return True
 
-    if config_entry.version == 1.1:
+    if config_entry.version == 1:
+        if config_entry.minor_version == 1:
+            new = {**config_entry.data}
+            new[CONF_ADDON_INTERFACE] = "auto"
+            new[CONF_ADDON_PARAMS] = None
+            hass.config_entries.async_update_entry(config_entry, data=new, minor_version=3, version=1)
+    
+    # Migrate to version 2.2 - add kg_key and privilege_level
+    if config_entry.version < 2 or (config_entry.version == 2 and config_entry.minor_version < 2):
         new = {**config_entry.data}
-        new[CONF_ADDON_INTERFACE] = "auto"
-        new[CONF_ADDON_PARAMS] = None
-        hass.config_entries.async_update_entry(config_entry, data=new, minor_version=3, version=1)
+        if CONF_KG_KEY not in new:
+            new[CONF_KG_KEY] = DEFAULT_KG_KEY
+        if CONF_PRIVILEGE_LEVEL not in new:
+            new[CONF_PRIVILEGE_LEVEL] = DEFAULT_PRIVILEGE_LEVEL
+        hass.config_entries.async_update_entry(config_entry, data=new, minor_version=2, version=2)
 
     _LOGGER.debug("Migration to version %s.%s successful", config_entry.version, config_entry.minor_version)
 

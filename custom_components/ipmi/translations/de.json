@@ -15,6 +15,8 @@
                     "password": "Passwort",
                     "port": "Port",
                     "username": "Benutzername",
+                    "kg_key": "Kg-Verschlüsselungsschlüssel (Hex, max. 40 Zeichen)",
+                    "privilege_level": "Berechtigungsstufe",
                     "ipmi_server_host": "ipmi-server Host (wenn ipmi-server verwendet wird)",
                     "addon_port": "Addon-Port (wenn ipmi-server Addon verwendet wird)",
                     "addon_interface": "Addon-Schnittstellentyp für ipmitool",

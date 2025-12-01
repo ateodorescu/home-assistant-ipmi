@@ -15,6 +15,8 @@
                     "password": "Κωδικός",
                     "port": "Θύρα",
                     "username": "Όνομα χρήστη",
+                    "kg_key": "Κλειδί κρυπτογράφησης Kg (hex, έως 40 χαρακτήρες)",
+                    "privilege_level": "Επίπεδο προνομίων",
                     "ipmi_server_host": "Υπολογιστής με το ipmi-server (Όταν χρησιμοποιείται ipmi-server)",
                     "addon_port": "Θύρα πρόσθετου (Όταν χρησιμοποείται το πρόσθετο ipmi-server)",
                     "addon_interface": "Διεπαφή του πρόσθετου για το ipmitool",

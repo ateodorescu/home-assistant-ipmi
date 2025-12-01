@@ -15,8 +15,12 @@
                     "password": "Mot de passe",
                     "port": "Port",
                     "username": "Nom d'utilisateur",
+                    "kg_key": "Clé de chiffrement Kg (hex, max 40 caractères)",
+                    "privilege_level": "Niveau de privilège",
                     "ipmi_server_host": "Hôte du serveur ipmi (lorsque le serveur ipmi est utilisé)",
-                    "addon_port": "Port de l'addon (lorsque l'addon du serveur ipmi est utilisé)"
+                    "addon_port": "Port de l'addon (lorsque l'addon du serveur ipmi est utilisé)",
+                    "addon_interface": "Type d'interface de l'addon pour ipmitool",
+                    "addon_extra_params": "Paramètres supplémentaires de l'addon pour ipmitool (par ex. chiffrement)"
                 },
                 "title": "Se connecter au serveur IPMI"
             }
