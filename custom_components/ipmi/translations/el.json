@@ -22,6 +22,9 @@
                     "addon_interface": "Διεπαφή του πρόσθετου για το ipmitool",
                     "addon_extra_params": "Πρόσθετες παράμετροι του πρόσθετου για το ipmitool (cypher ίσως;)"
                 },
+                "data_description": {
+                    "kg_key": "Προαιρετικό. Αυτή η λειτουργία απαιτεί το backend του πρόσθετου ipmi-server και δεν υποστηρίζεται από τη βιβλιοθήκη python-ipmi."
+                },
                 "title": "Σύνδεση στον IPMI διακομιστή"
             }
         }

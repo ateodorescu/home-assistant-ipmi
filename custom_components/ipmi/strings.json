@@ -15,6 +15,9 @@
           "addon_port": "[%key:common::config_flow::data::addon_port%]",
           "addon_interface": "[%key:common::config_flow::data::addon_interface%]",
           "addon_extra_params": "[%key:common::config_flow::data::addon_extra_params%]"
+        },
+        "data_description": {
+          "kg_key": "Optional. This feature requires the ipmi-server addon backend and is not supported by the python-ipmi library."
         }
       }
     },

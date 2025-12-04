@@ -22,6 +22,9 @@
                     "addon_interface": "Type d'interface de l'addon pour ipmitool",
                     "addon_extra_params": "Paramètres supplémentaires de l'addon pour ipmitool (par ex. chiffrement)"
                 },
+                "data_description": {
+                    "kg_key": "Optionnel. Cette fonctionnalité nécessite le backend de l'add-on ipmi-server et n'est pas prise en charge par la bibliothèque python-ipmi."
+                },
                 "title": "Se connecter au serveur IPMI"
             }
         }

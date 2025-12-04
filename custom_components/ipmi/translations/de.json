@@ -22,6 +22,9 @@
                     "addon_interface": "Addon-Schnittstellentyp für ipmitool",
                     "addon_extra_params": "Zusätzliche Addon-Parameter für ipmitool (vielleicht Cypher?)"
                 },
+                "data_description": {
+                    "kg_key": "Optional. Diese Funktion erfordert das ipmi-server-Addon-Backend und wird von der python-ipmi-Bibliothek nicht unterstützt."
+                },
                 "title": "Mit dem IPMI Server verbinden"
             }
         }
