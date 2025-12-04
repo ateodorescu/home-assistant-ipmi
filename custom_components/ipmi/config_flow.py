@@ -81,8 +81,15 @@ _LOGGER = logging.getLogger(__name__)
 
 def _validate_kg_key(value: str) -> str:
     """Validate the Kg key is valid hex and proper length."""
-    if not value:
-        return value
+    # Handle non-string types gracefully
+    if value is None:
+        return ""
+    # Convert to string if not already
+    if not isinstance(value, str):
+        value = str(value)
+    # Handle empty or whitespace-only strings
+    if not value.strip():
+        return ""
     # Remove any whitespace
     value = value.strip()
     # Must be even number of hex characters (valid octets)
@@ -128,9 +135,8 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     
     # Validate Kg key if provided
     kg_key = data.get(CONF_KG_KEY, "")
-    if kg_key:
-        kg_key = _validate_kg_key(kg_key)
-        data[CONF_KG_KEY] = kg_key
+    kg_key = _validate_kg_key(kg_key)
+    data[CONF_KG_KEY] = kg_key
 
     ipmi_data = IpmiServer(
         hass, 
