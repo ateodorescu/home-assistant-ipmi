@@ -51,10 +51,11 @@ from .const import (
     INTEGRATION_SUPPORTED_COMMANDS,
     SERVERS,
     DISPATCHERS,
-    IPMI_DEV_INFO_TO_DEV_INFO
+    IPMI_DEV_INFO_TO_DEV_INFO,
 )
 
 _LOGGER = logging.getLogger(__name__)
+
 
 @dataclass
 class IpmiDeviceInfo:
@@ -65,6 +66,7 @@ class IpmiDeviceInfo:
     sensors: dict[str, str] = None
     states: dict[str, str] = None
     alias: str = None
+
 
 class IpmiServer:
     """Stores the data retrieved from IPMI.
@@ -90,12 +92,16 @@ class IpmiServer:
         self._password = connection_data.get("password")
         self._kg_key = connection_data.get("kg_key")
         self._privilege_level = connection_data.get("privilege_level")
-        self._addon_url = connection_data.get("ipmi_server_host") + ":" + connection_data.get("addon_port")
+        self._addon_url = (
+            connection_data.get("ipmi_server_host")
+            + ":"
+            + connection_data.get("addon_port")
+        )
         self._addon_interface = connection_data.get("addon_interface")
         self._addon_extra_params = connection_data.get("addon_extra_params")
-        
-# when addon runs in dev mode (local web server)
-#         self._addon_url += '/repositories/home-assistant-addons/ipmi-server/rootfs/app/public'
+
+        # when addon runs in dev mode (local web server)
+        #         self._addon_url += '/repositories/home-assistant-addons/ipmi-server/rootfs/app/public'
 
         self._device_info: IpmiDeviceInfo | None = None
         self._known_sensors = []
@@ -113,12 +119,12 @@ class IpmiServer:
     def getFromAddon(self, path: str | None):
         response = None
 
-        try:    
+        try:
             params = {
                 "host": self._host,
                 "port": self._port,
                 "user": self._username,
-                "password": self._password
+                "password": self._password,
             }
 
             if self._addon_interface is not None and self._addon_interface != "auto":
@@ -142,20 +148,20 @@ class IpmiServer:
             _LOGGER.debug(params)
             ipmi = requests.get(url, params=params)
             response = ipmi.json()
-        except (Exception) as err: # pylint: disable=broad-except
+        except Exception as err:  # pylint: disable=broad-except
             _LOGGER.debug(err)
             _LOGGER.debug("'ipmi-server' addon is not available. Let's use RMCP.")
 
         return response
-    
+
     def generateId(self, name: str):
-        id = re.sub('[^A-Za-z0-9 _]+', '', name)
-        id = id.replace(' ', '_').lower()
+        id = re.sub("[^A-Za-z0-9 _]+", "", name)
+        id = id.replace(" ", "_").lower()
 
         return id
 
     def getFromRmcp(self):
-        try:    
+        try:
             json = {
                 "device": {},
                 "sensors": {
@@ -164,45 +170,49 @@ class IpmiServer:
                     "fan": {},
                     "power": {},
                     "current": {},
-                    "time": {}
+                    "time": {},
                 },
                 "states": {},
-                "power_on": False
+                "power_on": False,
             }
             ipmi = self.connect()
 
             inv = ipmi.get_fru_inventory()
-                
+
             device_id = ipmi.get_device_id()
-            
-            try: 
+
+            try:
                 inv = ipmi.get_fru_inventory()
-                json["device"]["manufacturer_name"] = inv.product_info_area.manufacturer.string
+                json["device"]["manufacturer_name"] = (
+                    inv.product_info_area.manufacturer.string
+                )
                 json["device"]["product_name"] = inv.board_info_area.product_name.string
-            except (Exception) as err: # pylint: disable=broad-except
+            except Exception as err:  # pylint: disable=broad-except
                 _LOGGER.warning("Error getting FRU Inventory Device")
                 json["device"]["manufacturer_name"] = "None"
-                json["device"]["product_name"] = "None"  
-                
-            json["device"]["firmware_revision"] = device_id.fw_revision.version_to_string()
+                json["device"]["product_name"] = "None"
+
+            json["device"]["firmware_revision"] = (
+                device_id.fw_revision.version_to_string()
+            )
             json["device"]["product_id"] = device_id.product_id
             json["power_on"] = ipmi.get_chassis_status().power_on
 
             iter_fct = None
 
-            if device_id.supports_function('sdr_repository'):
+            if device_id.supports_function("sdr_repository"):
                 iter_fct = ipmi.sdr_repository_entries
-            elif device_id.supports_function('sensor'):
+            elif device_id.supports_function("sensor"):
                 iter_fct = ipmi.device_sdr_entries
 
             for s in iter_fct():
-                name = getattr(s, 'device_id_string', None)
+                name = getattr(s, "device_id_string", None)
                 if name:
                     id_string = self.generateId(name)
                 else:
                     id_string = name
 
-                sensor_type = getattr(s, 'sensor_type_code', None)
+                sensor_type = getattr(s, "sensor_type_code", None)
                 value = None
 
                 try:
@@ -215,13 +225,15 @@ class IpmiServer:
                         (value, states) = ipmi.get_sensor_reading(s.number)
 
                 except pyipmi.errors.CompletionCodeError as e:
-                    if s.type in (pyipmi.sdr.SDR_TYPE_COMPACT_SENSOR_RECORD,
-                                pyipmi.sdr.SDR_TYPE_FULL_SENSOR_RECORD):
-                        _LOGGER.debug('0x{:04x} | {:3d} | {:18s} | ERR: CC=0x{:02x}'.format(
-                            s.id,
-                            s.number,
-                            s.device_id_string,
-                            e.cc))
+                    if s.type in (
+                        pyipmi.sdr.SDR_TYPE_COMPACT_SENSOR_RECORD,
+                        pyipmi.sdr.SDR_TYPE_FULL_SENSOR_RECORD,
+                    ):
+                        _LOGGER.debug(
+                            "0x{:04x} | {:3d} | {:18s} | ERR: CC=0x{:02x}".format(
+                                s.id, s.number, s.device_id_string, e.cc
+                            )
+                        )
 
                 if sensor_type == pyipmi.sensor.SENSOR_TYPE_TEMPERATURE:
                     json["sensors"]["temperature"][id_string] = name
@@ -235,41 +247,42 @@ class IpmiServer:
                     json["sensors"]["voltage"][id_string] = name
                     json["states"][id_string] = value
 
-            ipmi.session.close()
-        
+            ipmi.close()
+
         # except (IpmiConnectionError, ConnectionResetError) as err:
-        except (Exception) as err: # pylint: disable=broad-except
+        except Exception as err:  # pylint: disable=broad-except
             _LOGGER.error("Error connecting to IPMI server %s: %s", self._host, err)
             json = None
 
         return json
-    
+
     def runRmcpCommand(self, command: int):
         try:
             ipmi = self.connect()
             ipmi.chassis_control(command)
-            ipmi.session.close()
-        except (Exception) as err: # pylint: disable=broad-except
+            ipmi.close()
+        except Exception as err:  # pylint: disable=broad-except
             _LOGGER.error("Error connecting to IPMI server %s: %s", self._host, err)
 
     def connect(self) -> pyipmi.Ipmi:
-        interface = pyipmi.interfaces.create_interface('rmcp',
-                                            slave_address=0x81,
-                                            host_target_address=0x20,
-                                            keep_alive_interval=0)
+        interface = pyipmi.interfaces.create_interface(
+            "rmcp", slave_address=0x81, host_target_address=0x20, keep_alive_interval=0
+        )
         ipmi = pyipmi.create_connection(interface)
         ipmi.session.set_session_type_rmcp(self._host, self._port)
         ipmi.session.set_auth_type_user(self._username, self._password)
-        
+
         # Note: python-ipmi library does not support Kg keys - only ipmi-server addon supports this
         if self._kg_key:
-            _LOGGER.warning("Kg key specified but python-ipmi library does not support Kg key authentication. Kg key will be ignored. Consider using the ipmi-server addon for full feature support.")
-        
+            _LOGGER.warning(
+                "Kg key specified but python-ipmi library does not support Kg key authentication. Kg key will be ignored. Consider using the ipmi-server addon for full feature support."
+            )
+
         # Set privilege level if provided
         if self._privilege_level:
             ipmi.session.set_priv_level(self._privilege_level)
-        
-        ipmi.session.establish()
+
+        ipmi.open()
         ipmi.target = pyipmi.Target(ipmb_address=0x20)
 
         return ipmi
@@ -279,14 +292,14 @@ class IpmiServer:
 
         json = self.getFromAddon(None)
 
-        if (json is not None):
-            if (not json["success"]):
+        if json is not None:
+            if not json["success"]:
                 _LOGGER.error(json["message"])
                 json = None
         else:
             json = self.getFromRmcp()
 
-        if (json is not None):
+        if json is not None:
             info = IpmiDeviceInfo()
             info.device = json["device"]
             info.power_on = json["power_on"]
@@ -297,29 +310,28 @@ class IpmiServer:
         else:
             self._device_info = None
 
-        if (info is not None):
+        if info is not None:
             new_sensors = []
             # _LOGGER.critical(repr(info))
             # _LOGGER.critical(self._known_sensors)
 
-            if (len(info.states) == 0):
+            if len(info.states) == 0:
                 self._known_sensors.clear()
             else:
                 to_remove = []
                 for id in self._known_sensors:
-                    if (id not in info.states):
+                    if id not in info.states:
                         to_remove.append(id)
                 for id in to_remove:
                     self._known_sensors.remove(id)
 
                 for id in info.states:
-                    if (self._known_sensors.count(id) == 0):
+                    if self._known_sensors.count(id) == 0:
                         new_sensors.append(id)
 
-                if (len(new_sensors) > 0):
+                if len(new_sensors) > 0:
                     dispatcher_send(
-                        self.hass,
-                        IPMI_NEW_SENSOR_SIGNAL.format(self._entry_id)
+                        self.hass, IPMI_NEW_SENSOR_SIGNAL.format(self._entry_id)
                     )
 
     def is_known_sensor(self, id: str) -> bool:
@@ -332,31 +344,31 @@ class IpmiServer:
     def power_on(self) -> None:
         json = self.getFromAddon("power_on")
 
-        if (json is None):
+        if json is None:
             self.runRmcpCommand(pyipmi.chassis.CONTROL_POWER_UP)
 
     def power_off(self) -> None:
         json = self.getFromAddon("power_off")
 
-        if (json is None):
+        if json is None:
             self.runRmcpCommand(pyipmi.chassis.CONTROL_POWER_DOWN)
 
     def power_cycle(self) -> None:
         json = self.getFromAddon("power_cycle")
 
-        if (json is None):
+        if json is None:
             self.runRmcpCommand(pyipmi.chassis.CONTROL_POWER_CYCLE)
 
     def power_reset(self) -> None:
         json = self.getFromAddon("power_reset")
 
-        if (json is None):
+        if json is None:
             self.runRmcpCommand(pyipmi.chassis.CONTROL_HARD_RESET)
 
     def soft_shutdown(self) -> None:
         json = self.getFromAddon("soft_shutdown")
 
-        if (json is None):
+        if json is None:
             self.runRmcpCommand(pyipmi.chassis.CONTROL_SOFT_SHUTDOWN)
 
     def send_command(self, command: str, ignore_errors: bool) -> str:
@@ -368,19 +380,20 @@ class IpmiServer:
         uri_encoded = requests.utils.quote(cmd)
         response = self.getFromAddon("command?params=" + uri_encoded)
 
-        if (response is None):
+        if response is None:
             err = "Error executing command: {}", command.format(command)
-            if (ignore_errors):
+            if ignore_errors:
                 _LOGGER.error(err)
             else:
                 raise Exception(err)
-        
-        if (response["success"] == False):
-            err = "Error executing command: {}, Error: {}".format(command, response["output"])
-            if (ignore_errors):
+
+        if response["success"] == False:
+            err = "Error executing command: {}, Error: {}".format(
+                command, response["output"]
+            )
+            if ignore_errors:
                 _LOGGER.error(err)
             else:
                 raise Exception(err)
-        
+
         return response["output"]
-        
