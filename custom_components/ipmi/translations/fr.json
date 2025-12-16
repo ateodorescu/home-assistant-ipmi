@@ -20,7 +20,8 @@
                     "ipmi_server_host": "Hôte du serveur ipmi (lorsque le serveur ipmi est utilisé)",
                     "addon_port": "Port de l'addon (lorsque l'addon du serveur ipmi est utilisé)",
                     "addon_interface": "Type d'interface de l'addon pour ipmitool",
-                    "addon_extra_params": "Paramètres supplémentaires de l'addon pour ipmitool (par ex. chiffrement)"
+                    "addon_extra_params": "Paramètres supplémentaires de l'addon pour ipmitool (par ex. chiffrement)",
+                    "ignore_checksum_errors": "Ignorer les erreurs de somme de contrôle FRU"
                 },
                 "data_description": {
                     "kg_key": "Optionnel. Cette fonctionnalité nécessite le backend de l'add-on ipmi-server et n'est pas prise en charge par la bibliothèque python-ipmi."

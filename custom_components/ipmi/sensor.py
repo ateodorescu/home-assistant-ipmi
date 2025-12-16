@@ -1,4 +1,5 @@
 """Provides sensors to track various status aspects of an IPMI server."""
+
 from __future__ import annotations
 
 from dataclasses import asdict
@@ -22,7 +23,7 @@ from homeassistant.const import (
     UnitOfPower,
     UnitOfElectricCurrent,
     UnitOfTime,
-    REVOLUTIONS_PER_MINUTE
+    REVOLUTIONS_PER_MINUTE,
 )
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity import DeviceInfo
@@ -47,10 +48,11 @@ from .const import (
     IPMI_NEW_SENSOR_SIGNAL,
     IPMI_UPDATE_SENSOR_SIGNAL,
     IPMI_DEV_INFO_TO_DEV_INFO,
-    DISPATCHERS
+    DISPATCHERS,
 )
 
 _LOGGER = logging.getLogger(__name__)
+
 
 def _get_ipmi_device_info(data: IpmiServer) -> DeviceInfo:
     """Return a DeviceInfo object filled with IPMI device info."""
@@ -74,24 +76,26 @@ async def async_setup_entry(
     server_id = config_entry.entry_id
     ipmiserver = get_ipmi_server(hass, server_id)
 
-    if (ipmiserver):
+    if ipmiserver:
         coordinator = ipmiserver[COORDINATOR]
         data = ipmiserver[IPMI_DATA]
         unique_id = ipmiserver[IPMI_UNIQUE_ID]
 
-        async_add_entities([
-            IpmiSensor(
-                coordinator,
-                SensorEntityDescription(
-                    key=KEY_STATUS,
-                    name="State",
-                    icon="mdi:power",
-                    entity_registry_enabled_default=True,
-                ),
-                data,
-                unique_id,
-            )
-        ])
+        async_add_entities(
+            [
+                IpmiSensor(
+                    coordinator,
+                    SensorEntityDescription(
+                        key=KEY_STATUS,
+                        name="State",
+                        icon="mdi:power",
+                        entity_registry_enabled_default=True,
+                    ),
+                    data,
+                    unique_id,
+                )
+            ]
+        )
 
         _LOGGER.debug("State sensor added")
 
@@ -102,17 +106,18 @@ async def async_setup_entry(
 
         get_ipmi_data(hass)[DISPATCHERS][server_id].append(
             async_dispatcher_connect(
-                hass, 
-                IPMI_NEW_SENSOR_SIGNAL.format(server_id), 
+                hass,
+                IPMI_NEW_SENSOR_SIGNAL.format(server_id),
                 async_new_sensors,
             )
         )
         _LOGGER.debug("Entity listener created")
         async_new_sensors()
 
+
 @callback
 def create_entity_sensors(
-    ipmi_data: object, 
+    ipmi_data: object,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     coordinator = ipmi_data[COORDINATOR]
@@ -125,7 +130,7 @@ def create_entity_sensors(
 
     if status.sensors.get("temperature") is not None:
         for id in status.sensors.get("temperature"):
-            if (not data.is_known_sensor(id)):
+            if not data.is_known_sensor(id):
                 _LOGGER.debug("%s sensor will be added", id)
                 data.add_known_sensor(id)
 
@@ -148,7 +153,7 @@ def create_entity_sensors(
 
     if status.sensors.get("voltage") is not None:
         for id in status.sensors.get("voltage"):
-            if (not data.is_known_sensor(id)):
+            if not data.is_known_sensor(id):
                 _LOGGER.debug("%s sensor will be added", id)
                 data.add_known_sensor(id)
 
@@ -171,7 +176,7 @@ def create_entity_sensors(
 
     if status.sensors.get("fan") is not None:
         for id in status.sensors.get("fan"):
-            if (not data.is_known_sensor(id)):
+            if not data.is_known_sensor(id):
                 _LOGGER.debug("%s sensor will be added", id)
                 data.add_known_sensor(id)
 
@@ -194,7 +199,7 @@ def create_entity_sensors(
 
     if status.sensors.get("power") is not None:
         for id in status.sensors.get("power"):
-            if (not data.is_known_sensor(id)):
+            if not data.is_known_sensor(id):
                 _LOGGER.debug("%s sensor will be added", id)
                 data.add_known_sensor(id)
 
@@ -217,7 +222,7 @@ def create_entity_sensors(
 
     if status.sensors.get("current") is not None:
         for id in status.sensors.get("current"):
-            if (not data.is_known_sensor(id)):
+            if not data.is_known_sensor(id):
                 _LOGGER.debug("%s sensor will be added", id)
                 data.add_known_sensor(id)
 
@@ -240,7 +245,7 @@ def create_entity_sensors(
 
     if status.sensors.get("time") is not None:
         for id in status.sensors.get("time"):
-            if (not data.is_known_sensor(id)):
+            if not data.is_known_sensor(id):
                 _LOGGER.debug("%s sensor will be added", id)
                 data.add_known_sensor(id)
 
@@ -264,7 +269,9 @@ def create_entity_sensors(
     async_add_entities(entities, True)
 
 
-class IpmiSensor(CoordinatorEntity[DataUpdateCoordinator[dict[str, str]]], SensorEntity):
+class IpmiSensor(
+    CoordinatorEntity[DataUpdateCoordinator[dict[str, str]]], SensorEntity
+):
     """Representation of a sensor entity for IPMI status values."""
 
     _attr_has_entity_name = True
@@ -300,8 +307,8 @@ class IpmiSensor(CoordinatorEntity[DataUpdateCoordinator[dict[str, str]]], Senso
                 return False
 
             state = status.states.get(self.entity_description.key, None)
-            
-            return (state is not None)
+
+            return state is not None
 
     @property
     def native_value(self) -> str | None:
