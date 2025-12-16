@@ -26,6 +26,7 @@ from homeassistant.data_entry_flow import FlowResult
 
 from . import IpmiServer
 from .const import (
+    CONF_IGNORE_CHECKSUM_ERRORS,
     DEFAULT_HOST,
     DEFAULT_ALIAS,
     DEFAULT_PORT,
@@ -131,6 +132,7 @@ def _base_schema(discovery_info: zeroconf.ZeroconfServiceInfo | None) -> vol.Sch
                     CONF_ADDON_INTERFACE, default=DEFAULT_INTERFACE_TYPE
                 ): _INTERFACE_SELECTOR,
                 vol.Optional(CONF_ADDON_PARAMS): cv.string,
+                vol.Optional(CONF_IGNORE_CHECKSUM_ERRORS, default=False): cv.boolean,
             }
         )
 
@@ -163,6 +165,7 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
             "addon_port": data.get(CONF_ADDON_PORT),
             "addon_interface": data.get(CONF_ADDON_INTERFACE),
             "addon_extra_params": data.get(CONF_ADDON_PARAMS),
+            CONF_IGNORE_CHECKSUM_ERRORS: data.get(CONF_IGNORE_CHECKSUM_ERRORS, False),
         },
     )
     await hass.async_add_executor_job(ipmi_data.update)

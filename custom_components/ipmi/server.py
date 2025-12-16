@@ -26,6 +26,8 @@ from homeassistant.const import (
     CONF_SCAN_INTERVAL,
     CONF_USERNAME,
 )
+
+
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry as dr, template
@@ -41,6 +43,7 @@ from .const import (
     DEFAULT_TIMEOUT,
     CONF_ADDON_PORT,
     CONF_IPMI_SERVER_HOST,
+    CONF_IGNORE_CHECKSUM_ERRORS,
     DOMAIN,
     PLATFORMS,
     IPMI_DATA,
@@ -99,6 +102,9 @@ class IpmiServer:
         )
         self._addon_interface = connection_data.get("addon_interface")
         self._addon_extra_params = connection_data.get("addon_extra_params")
+        self._ignore_checksum_errors = connection_data.get(
+            CONF_IGNORE_CHECKSUM_ERRORS, False
+        )
 
         # when addon runs in dev mode (local web server)
         #         self._addon_url += '/repositories/home-assistant-addons/ipmi-server/rootfs/app/public'
@@ -177,12 +183,14 @@ class IpmiServer:
             }
             ipmi = self.connect()
 
-            inv = ipmi.get_fru_inventory()
+            inv = ipmi.get_fru_inventory(ignore_checksum=self._ignore_checksum_errors)
 
             device_id = ipmi.get_device_id()
 
             try:
-                inv = ipmi.get_fru_inventory()
+                inv = ipmi.get_fru_inventory(
+                    ignore_checksum=self._ignore_checksum_errors
+                )
                 json["device"]["manufacturer_name"] = (
                     inv.product_info_area.manufacturer.string
                 )

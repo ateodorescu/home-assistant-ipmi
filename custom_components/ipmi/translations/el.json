@@ -20,7 +20,8 @@
                     "ipmi_server_host": "Υπολογιστής με το ipmi-server (Όταν χρησιμοποιείται ipmi-server)",
                     "addon_port": "Θύρα πρόσθετου (Όταν χρησιμοποείται το πρόσθετο ipmi-server)",
                     "addon_interface": "Διεπαφή του πρόσθετου για το ipmitool",
-                    "addon_extra_params": "Πρόσθετες παράμετροι του πρόσθετου για το ipmitool (cypher ίσως;)"
+                    "addon_extra_params": "Πρόσθετες παράμετροι του πρόσθετου για το ipmitool (cypher ίσως;)",
+                    "ignore_checksum_errors": "Αγνόηση σφαλμάτων αθροίσματος ελέγχου FRU"
                 },
                 "data_description": {
                     "kg_key": "Προαιρετικό. Αυτή η λειτουργία απαιτεί το backend του πρόσθετου ipmi-server και δεν υποστηρίζεται από τη βιβλιοθήκη python-ipmi."
@@ -32,7 +33,7 @@
     "entity": {
         "switch": {
             "chassis": {
-                "name":"Απενεργοποίηση/Μη βίαιη απενεργοποίηση"
+                "name": "Απενεργοποίηση/Μη βίαιη απενεργοποίηση"
             }
         }
     },
