@@ -1,4 +1,5 @@
 """Config flow for IPMI integration."""
+
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -25,10 +26,11 @@ from homeassistant.data_entry_flow import FlowResult
 
 from . import IpmiServer
 from .const import (
-    DEFAULT_HOST, 
-    DEFAULT_ALIAS, 
-    DEFAULT_PORT, 
-    DEFAULT_USERNAME, 
+    CONF_IGNORE_CHECKSUM_ERRORS,
+    DEFAULT_HOST,
+    DEFAULT_ALIAS,
+    DEFAULT_PORT,
+    DEFAULT_USERNAME,
     DEFAULT_PASSWORD,
     DEFAULT_SCAN_INTERVAL,
     CONF_ADDON_PORT,
@@ -60,7 +62,7 @@ _INTERFACE_SELECTOR = vol.All(
         selector.SelectSelectorConfig(
             options=["auto", "lanplus", "lan", "imb", "open"],
             multiple=False,
-            mode="dropdown"
+            mode="dropdown",
         ),
     ),
     vol.Coerce(str),
@@ -69,15 +71,14 @@ _INTERFACE_SELECTOR = vol.All(
 _PRIVILEGE_LEVEL_SELECTOR = vol.All(
     selector.SelectSelector(
         selector.SelectSelectorConfig(
-            options=PRIVILEGE_LEVELS,
-            multiple=False,
-            mode="dropdown"
+            options=PRIVILEGE_LEVELS, multiple=False, mode="dropdown"
         ),
     ),
     vol.Coerce(str),
 )
 
 _LOGGER = logging.getLogger(__name__)
+
 
 def _validate_kg_key(value: str) -> str:
     """Validate the Kg key is valid hex and proper length."""
@@ -94,7 +95,9 @@ def _validate_kg_key(value: str) -> str:
     value = value.strip()
     # Must be even number of hex characters (valid octets)
     if len(value) % 2 != 0:
-        raise vol.Invalid("Kg key must have an even number of hexadecimal characters (valid octets)")
+        raise vol.Invalid(
+            "Kg key must have an even number of hexadecimal characters (valid octets)"
+        )
     # Must be at most 40 hex characters (20 bytes max for IPMI v2.0/RMCP+)
     if len(value) > 40:
         raise vol.Invalid("Kg key must be at most 40 hexadecimal characters (20 bytes)")
@@ -105,6 +108,7 @@ def _validate_kg_key(value: str) -> str:
         raise vol.Invalid("Kg key must contain only hexadecimal characters (0-9, A-F)")
     return value.upper()
 
+
 def _base_schema(discovery_info: zeroconf.ZeroconfServiceInfo | None) -> vol.Schema:
     """Generate base schema."""
     base_schema = {}
@@ -114,33 +118,41 @@ def _base_schema(discovery_info: zeroconf.ZeroconfServiceInfo | None) -> vol.Sch
                 vol.Required(CONF_ALIAS, default=DEFAULT_ALIAS): cv.string,
                 vol.Required(CONF_HOST, default=DEFAULT_HOST): cv.string,
                 vol.Required(CONF_PORT, default=DEFAULT_PORT): _PORT_SELECTOR,
-                vol.Optional(CONF_USERNAME, default=DEFAULT_USERNAME): cv.string, 
+                vol.Optional(CONF_USERNAME, default=DEFAULT_USERNAME): cv.string,
                 vol.Optional(CONF_PASSWORD, default=DEFAULT_PASSWORD): cv.string,
                 vol.Optional(CONF_KG_KEY, default=DEFAULT_KG_KEY): cv.string,
-                vol.Optional(CONF_PRIVILEGE_LEVEL, default=DEFAULT_PRIVILEGE_LEVEL): _PRIVILEGE_LEVEL_SELECTOR,
-                vol.Optional(CONF_IPMI_SERVER_HOST, default=DEFAULT_IPMI_SERVER_HOST): cv.string,
+                vol.Optional(
+                    CONF_PRIVILEGE_LEVEL, default=DEFAULT_PRIVILEGE_LEVEL
+                ): _PRIVILEGE_LEVEL_SELECTOR,
+                vol.Optional(
+                    CONF_IPMI_SERVER_HOST, default=DEFAULT_IPMI_SERVER_HOST
+                ): cv.string,
                 vol.Optional(CONF_ADDON_PORT, default=DEFAULT_ADDON_PORT): cv.string,
-                vol.Optional(CONF_ADDON_INTERFACE, default=DEFAULT_INTERFACE_TYPE): _INTERFACE_SELECTOR,
+                vol.Optional(
+                    CONF_ADDON_INTERFACE, default=DEFAULT_INTERFACE_TYPE
+                ): _INTERFACE_SELECTOR,
                 vol.Optional(CONF_ADDON_PARAMS): cv.string,
+                vol.Optional(CONF_IGNORE_CHECKSUM_ERRORS, default=False): cv.boolean,
             }
         )
 
     return vol.Schema(base_schema)
+
 
 async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
     """Validate the user input allows us to connect.
 
     Data has the keys from _base_schema with values provided by the user.
     """
-    
+
     # Validate Kg key if provided
     kg_key = data.get(CONF_KG_KEY, "")
     kg_key = _validate_kg_key(kg_key)
     data[CONF_KG_KEY] = kg_key
 
     ipmi_data = IpmiServer(
-        hass, 
-        None, 
+        hass,
+        None,
         {
             "host": data.get(CONF_HOST),
             "port": data.get(CONF_PORT),
@@ -153,7 +165,8 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
             "addon_port": data.get(CONF_ADDON_PORT),
             "addon_interface": data.get(CONF_ADDON_INTERFACE),
             "addon_extra_params": data.get(CONF_ADDON_PARAMS),
-        }
+            CONF_IGNORE_CHECKSUM_ERRORS: data.get(CONF_IGNORE_CHECKSUM_ERRORS, False),
+        },
     )
     await hass.async_add_executor_job(ipmi_data.update)
 
@@ -162,12 +175,14 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
 
     return {"device_info": device_info}
 
+
 def _format_host_port_alias(user_input: Mapping[str, Any]) -> str:
     """Format a host, port, and alias so it can be used for comparison or display."""
     host = user_input[CONF_HOST]
     port = user_input[CONF_PORT]
     alias = user_input[CONF_ALIAS]
     return f"{alias}@{host}:{port}"
+
 
 class IpmiConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for IPMI."""
@@ -237,7 +252,7 @@ class IpmiConfigFlow(ConfigFlow, domain=DOMAIN):
             info = await validate_input(self.hass, config)
         except CannotConnect:
             errors[CONF_BASE] = "cannot_connect"
-        except (Exception) as err:  # pylint: disable=broad-except
+        except Exception as err:  # pylint: disable=broad-except
             _LOGGER.exception("Unexpected exception: %s", err)
             errors[CONF_BASE] = "unknown"
         return info, errors
@@ -248,12 +263,12 @@ class IpmiConfigFlow(ConfigFlow, domain=DOMAIN):
         """Get the options flow for this handler."""
         return OptionsFlowHandler(config_entry)
 
+
 class OptionsFlowHandler(OptionsFlow):
     """Handle a option flow for ipmi."""
 
     def __init__(self, config_entry: ConfigEntry) -> None:
         """Initialize options flow."""
-        self.config_entry = config_entry
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
@@ -273,6 +288,7 @@ class OptionsFlowHandler(OptionsFlow):
         }
 
         return self.async_show_form(step_id="init", data_schema=vol.Schema(base_schema))
+
 
 class CannotConnect(exceptions.HomeAssistantError):
     """Error to indicate we cannot connect."""
