@@ -259,7 +259,7 @@ class IpmiServer:
 
         # except (IpmiConnectionError, ConnectionResetError) as err:
         except Exception as err:  # pylint: disable=broad-except
-            _LOGGER.error("Error connecting to IPMI server %s: %s", self._host, err)
+            _LOGGER.debug("Error connecting to IPMI server %s: %s", self._host, err)
             json = None
 
         return json
