@@ -80,7 +80,6 @@ async def async_setup_entry(
         coordinator = ipmiserver[COORDINATOR]
         data = ipmiserver[IPMI_DATA]
         unique_id = ipmiserver[IPMI_UNIQUE_ID]
-
         async_add_entities(
             [
                 IpmiSensor(
@@ -102,7 +101,7 @@ async def async_setup_entry(
         @callback
         def async_new_sensors() -> None:
             """Set up IPMI sensors."""
-            create_entity_sensors(ipmiserver, async_add_entities)
+            create_entity_sensors(ipmiserver, unique_id, async_add_entities)
 
         get_ipmi_data(hass)[DISPATCHERS][server_id].append(
             async_dispatcher_connect(
@@ -118,11 +117,11 @@ async def async_setup_entry(
 @callback
 def create_entity_sensors(
     ipmi_data: object,
+    unique_id: str,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     coordinator = ipmi_data[COORDINATOR]
     data = ipmi_data[IPMI_DATA]
-    unique_id = ipmi_data[IPMI_UNIQUE_ID]
     status = coordinator.data
     entities = []
 
@@ -168,6 +167,7 @@ def create_entity_sensors(
                             state_class=SensorStateClass.MEASUREMENT,
                             # entity_category=EntityCategory.DIAGNOSTIC,
                             entity_registry_enabled_default=True,
+                            suggested_display_precision=2,
                         ),
                         data,
                         unique_id,
@@ -237,6 +237,7 @@ def create_entity_sensors(
                             state_class=SensorStateClass.MEASUREMENT,
                             # entity_category=EntityCategory.DIAGNOSTIC,
                             entity_registry_enabled_default=True,
+                            suggested_display_precision=2,
                         ),
                         data,
                         unique_id,
@@ -288,7 +289,7 @@ class IpmiSensor(
         self.entity_description = sensor_description
 
         device_name = data.name.title()
-        self._attr_unique_id = f"{unique_id}_{sensor_description.key}"
+        self._attr_unique_id = f"{unique_id}_{data._alias}_{sensor_description.key}"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, unique_id)},
             name=device_name,

@@ -166,18 +166,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     server_id = entry.entry_id
 
     hass_data = get_ipmi_data(hass)
-    hass_data[SERVERS][entry.entry_id] = {
+    hass_data[SERVERS][server_id] = {
         COORDINATOR: coordinator,
         IPMI_DATA: data,
-        IPMI_UNIQUE_ID: server_id,
+        IPMI_UNIQUE_ID: server_id.lower(),
         USER_AVAILABLE_COMMANDS: INTEGRATION_SUPPORTED_COMMANDS,
     }
     hass_data[DISPATCHERS].setdefault(server_id, [])
 
     device_registry = dr.async_get(hass)
     device_registry.async_get_or_create(
-        config_entry_id=entry.entry_id,
-        identifiers={(DOMAIN, server_id)},
+        config_entry_id=server_id,
+        identifiers={(DOMAIN, server_id.lower())},
         name=data.name.title(),
         manufacturer=data._device_info.device["manufacturer_name"],
         model=data._device_info.device["product_name"],
