@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import asdict
 import logging
 from typing import Any, cast
+import re
 
 from homeassistant.components.switch import (
     SwitchEntity,
@@ -88,9 +89,11 @@ class IpmiSwitch(CoordinatorEntity[DataUpdateCoordinator[dict[str, str]]],Switch
         self.entity_description = switch_description
 
         device_name = data.name.title()
+        id = f"{data._alias}_{switch_description.key}"
+        id = re.sub(r"[^\w]", "_", id).lower()
 
-        self.entity_id = ("switch." + DOMAIN + "_" + data._alias + "_" + switch_description.key).lower()
-        self._attr_unique_id = f"{unique_id}_{data._alias}_{switch_description.key}"
+        self.entity_id = "switch." + DOMAIN + "_" + id
+        self._attr_unique_id = f"{unique_id}_{id}"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, unique_id)},
             name=device_name,
