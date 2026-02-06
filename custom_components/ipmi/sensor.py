@@ -79,7 +79,7 @@ async def async_setup_entry(
     if ipmiserver:
         coordinator = ipmiserver[COORDINATOR]
         data = ipmiserver[IPMI_DATA]
-        unique_id = ipmiserver[IPMI_UNIQUE_ID]
+        unique_id = (server_id + "_" + ipmiserver[IPMI_UNIQUE_ID]).lower()
 
         async_add_entities(
             [
@@ -122,7 +122,7 @@ def create_entity_sensors(
 ) -> None:
     coordinator = ipmi_data[COORDINATOR]
     data = ipmi_data[IPMI_DATA]
-    unique_id = ipmi_data[IPMI_UNIQUE_ID]
+    unique_id = (server_id + "_" + ipmiserver[IPMI_UNIQUE_ID]).lower()
     status = coordinator.data
     entities = []
 
@@ -145,6 +145,7 @@ def create_entity_sensors(
                             state_class=SensorStateClass.MEASUREMENT,
                             # entity_category=EntityCategory.DIAGNOSTIC,
                             entity_registry_enabled_default=True,
+                            suggested_display_precision=2,
                         ),
                         data,
                         unique_id,
@@ -168,6 +169,7 @@ def create_entity_sensors(
                             state_class=SensorStateClass.MEASUREMENT,
                             # entity_category=EntityCategory.DIAGNOSTIC,
                             entity_registry_enabled_default=True,
+                            suggested_display_precision=2,
                         ),
                         data,
                         unique_id,
@@ -237,6 +239,7 @@ def create_entity_sensors(
                             state_class=SensorStateClass.MEASUREMENT,
                             # entity_category=EntityCategory.DIAGNOSTIC,
                             entity_registry_enabled_default=True,
+                            suggested_display_precision=2,
                         ),
                         data,
                         unique_id,
