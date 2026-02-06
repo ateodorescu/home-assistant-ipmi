@@ -88,7 +88,7 @@ class IpmiSwitch(CoordinatorEntity[DataUpdateCoordinator[dict[str, str]]],Switch
         self.entity_description = switch_description
 
         device_name = data.name.title()
-        self.entity_id = DOMAIN + "." + data._alias + "." + switch_description.key
+        self.entity_id = "switch." + DOMAIN + "_" + data._alias + "_" + switch_description.key
         self._attr_unique_id = f"{unique_id}_{switch_description.key}"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, unique_id)},
