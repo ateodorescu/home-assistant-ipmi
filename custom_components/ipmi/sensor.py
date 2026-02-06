@@ -79,7 +79,7 @@ async def async_setup_entry(
     if ipmiserver:
         coordinator = ipmiserver[COORDINATOR]
         data = ipmiserver[IPMI_DATA]
-        unique_id = ipmiserver[IPMI_UNIQUE_ID]
+        unique_id = (server_id + "_" + ipmiserver[IPMI_UNIQUE_ID]).lower()
 
         async_add_entities(
             [
