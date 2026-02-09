@@ -11,7 +11,7 @@ It can connect to your servers in three ways:
     basically a wrapper for `ipmitool`.
 - via the `ipmi-server-standalone` docker container.
     
-    docker pull ghcr.io/ateodorescu/ipmi-server-standalone:latest
+        docker pull ghcr.io/ateodorescu/ipmi-server-standalone:latest
 
 - via the Python library [python-ipmi](https://github.com/kontron/python-ipmi)
 which hasn't been tested with all servers.
