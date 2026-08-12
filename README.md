@@ -33,7 +33,9 @@ If the addon / standalone HTTP API is reachable it is used first; otherwise the 
 
 ## Installation
 
-Install via HACS or copy the `custom_components` folder into your Home Assistant `config` folder.
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=ateodorescu&repository=home-assistant-ipmi&category=integration)
+
+Install via [HACS](https://hacs.xyz) (button above), or copy the `custom_components` folder into your Home Assistant `config` folder.
 Restart Home Assistant, then add the **IPMI** integration.
 
 ## Entities and controls
