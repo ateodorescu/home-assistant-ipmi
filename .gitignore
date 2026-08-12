@@ -1,3 +1,4 @@
-.idea__pycache__/
+.idea/
+__pycache__/
 *.py[cod]
 .pytest_cache/
