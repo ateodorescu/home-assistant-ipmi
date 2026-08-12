@@ -1,0 +1,56 @@
+name: Release
+
+# Attaches ipmi.zip so HACS can count downloads (zip_release + filename in hacs.json).
+on:
+  push:
+    tags:
+      - "v*"
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to attach ipmi.zip to (e.g. v1.21.2)
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  upload-hacs-zip:
+    name: Upload HACS zip
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve target tag
+        id: target
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "release" ]; then
+            echo "tag=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.target.outputs.tag }}
+
+      - name: Build ipmi.zip
+        run: |
+          cd custom_components/ipmi
+          zip -r "${GITHUB_WORKSPACE}/ipmi.zip" . \
+            -x '*__pycache__*' \
+            -x '*.pyc' \
+            -x '.*' \
+            -x '*DS_Store*'
+
+      - name: Upload ipmi.zip to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.target.outputs.tag }}
+          files: ipmi.zip
+          fail_on_unmatched_files: true
+          generate_release_notes: ${{ github.event_name == 'push' }}

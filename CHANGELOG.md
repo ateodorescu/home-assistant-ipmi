@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.21.3 — 2026-08-12
+
+### Changed
+
+- HACS packaging: releases attach `ipmi.zip` (`zip_release` + `filename` in `hacs.json`) so the store download counter works; GitHub Action uploads the asset on tag/release
+
 ## 1.21.2 — 2026-08-12
 
 Reliability and connection UX improvements. **Backward compatible:** entity `unique_id`s, State sensor, device actions, and `send_command` are unchanged. Default backend behavior remains addon-first then RMCP (`backend_preference=auto`).
