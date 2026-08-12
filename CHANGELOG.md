@@ -1,5 +1,53 @@
 # Changelog
 
+## 1.21.2 — 2026-08-12
+
+Reliability and connection UX improvements. **Backward compatible:** entity `unique_id`s, State sensor, device actions, and `send_command` are unchanged. Default backend behavior remains addon-first then RMCP (`backend_preference=auto`).
+
+### Highlights
+
+- Power commands fall back to RMCP when the addon returns `success: false` (not only when HTTP fails)
+- Optional **backend preference** (`auto` / `addon` / `rmcp`) plus short addon cooldown after repeated failures
+- Selecting **rmcp** shows a confirmation warning that `send_command` requires the addon
+- RMCP session reuse; addon HTTP uses **GET** (POST only after a proven successful probe)
+- Numeric sensors return `None` when a reading is missing (instead of the string `unknown`)
+- Clearer `send_command` errors when the addon is unavailable / RMCP-only
+- Shared device-info helper; broader unit tests
+
+### Added
+
+- Options / advanced: `backend_preference` (default `auto` = prior behavior)
+- Config entry migration `2.5` for the new option default
+- Diagnostics: backend preference, addon POST mode, entity unique_id scheme note
+- Unit tests for RMCP sensor categorization, chassis fallback, addon GET/POST handling, backend preference
+
+### Changed
+
+- `IpmiServer` method names snake_cased (`get_from_addon`, …) with camelCase aliases kept
+- Cached RMCP session closed on entry unload
+- Device registry / entity device info use safe `.get` via shared helper
+- `send_command` passes the ipmitool string as a request param (path no longer embeds `?params=`)
+- Backend preference field descriptions note that `send_command` does not work with `rmcp`
+
+### Compatibility
+
+| Area | Behavior |
+|------|----------|
+| Entity `unique_id`s | Unchanged (`{entry_id}_{alias}_{key}`) |
+| State sensor | Kept |
+| Device actions | Kept |
+| `send_command` | Addon path only (clearer error when unavailable; warn when choosing `rmcp`) |
+| Addon → RMCP fallback | Preserved when `backend_preference=auto` (default) |
+| Addon HTTP | GET (POST only after proven success) |
+
+### Upgrade notes
+
+- Reload or restart after updating so migration `2.5` and option defaults apply
+- RMCP-only users can set **Connection backend preference** to `rmcp` to skip addon probes (`send_command` will not work in that mode)
+- Entity unique IDs still change if you remove and re-add an entry (intentional BC; not migrated)
+
+---
+
 ## 1.20.5 — 2026-08-12
 
 Cumulative release of the BC-safe roadmap (phases 1–4) plus follow-up fixes since `1.17.0`. Existing entity unique IDs, the State sensor, device actions, and `send_command` are preserved.

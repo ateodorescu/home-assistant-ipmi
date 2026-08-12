@@ -29,15 +29,21 @@
           "addon_interface": "ipmitool interface",
           "addon_extra_params": "Extra ipmitool parameters",
           "ignore_checksum_errors": "Ignore FRU checksum errors",
-          "sensor_types": "Sensor types to discover"
+          "sensor_types": "Sensor types to discover",
+          "backend_preference": "Connection backend preference"
         },
         "data_description": {
           "kg_key": "Optional. Requires the ipmi-server addon; not supported by the python-ipmi fallback.",
           "ipmi_server_host": "On Home Assistant OS use the addon hostname, not localhost.",
           "addon_interface": "Usually lanplus. Use auto to let ipmitool decide.",
           "addon_extra_params": "Optional raw ipmitool arguments (for example cipher suite).",
-          "sensor_types": "Only selected types are created for newly discovered sensors. Defaults match previous behavior (all types)."
+          "sensor_types": "Only selected types are created for newly discovered sensors. Defaults match previous behavior (all types).",
+          "backend_preference": "auto = try addon first then RMCP (historical default). addon = addon only. rmcp = python-ipmi only (skips addon probes). Warning: the send_command service requires the addon and will not work with rmcp."
         }
+      },
+      "rmcp_warning": {
+        "title": "RMCP-only mode",
+        "description": "You selected rmcp (python-ipmi only). The custom send_command service will not work — it requires the ipmi-server addon or standalone HTTP API. Sensors and chassis power controls still work. Submit to continue, or go back to choose auto/addon."
       },
       "reconfigure": {
         "title": "Reconfigure IPMI server",
@@ -62,8 +68,16 @@
           "addon_interface": "[%key:component::ipmi::config::step::advanced::data::addon_interface%]",
           "addon_extra_params": "[%key:component::ipmi::config::step::advanced::data::addon_extra_params%]",
           "ignore_checksum_errors": "[%key:component::ipmi::config::step::advanced::data::ignore_checksum_errors%]",
-          "sensor_types": "[%key:component::ipmi::config::step::advanced::data::sensor_types%]"
+          "sensor_types": "[%key:component::ipmi::config::step::advanced::data::sensor_types%]",
+          "backend_preference": "[%key:component::ipmi::config::step::advanced::data::backend_preference%]"
+        },
+        "data_description": {
+          "backend_preference": "[%key:component::ipmi::config::step::advanced::data_description::backend_preference%]"
         }
+      },
+      "reconfigure_rmcp_warning": {
+        "title": "[%key:component::ipmi::config::step::rmcp_warning::title%]",
+        "description": "[%key:component::ipmi::config::step::rmcp_warning::description%]"
       },
       "reauth_confirm": {
         "title": "Reauthenticate IPMI server",
@@ -125,11 +139,17 @@
         "description": "Filters apply only to newly discovered sensors. Existing entities are left unchanged until the entry is reloaded after enabling a type.",
         "data": {
           "scan_interval": "Scan Interval (seconds)",
-          "sensor_types": "Sensor types to discover"
+          "sensor_types": "Sensor types to discover",
+          "backend_preference": "Connection backend preference"
         },
         "data_description": {
-          "sensor_types": "Only selected types are created for newly discovered sensors. Defaults match previous behavior (all types)."
+          "sensor_types": "Only selected types are created for newly discovered sensors. Defaults match previous behavior (all types).",
+          "backend_preference": "auto = try addon first then RMCP (historical default). addon = addon only. rmcp = python-ipmi only (skips addon probes). Warning: the send_command service requires the addon and will not work with rmcp."
         }
+      },
+      "rmcp_warning": {
+        "title": "[%key:component::ipmi::config::step::rmcp_warning::title%]",
+        "description": "[%key:component::ipmi::config::step::rmcp_warning::description%]"
       }
     }
   },

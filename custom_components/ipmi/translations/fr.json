@@ -38,14 +38,16 @@
           "addon_interface": "Interface ipmitool",
           "addon_extra_params": "Paramètres ipmitool supplémentaires",
           "ignore_checksum_errors": "Ignorer les erreurs de somme de contrôle FRU",
-          "sensor_types": "Types de capteurs à découvrir"
+          "sensor_types": "Types de capteurs à découvrir",
+          "backend_preference": "Préférence de backend de connexion"
         },
         "data_description": {
           "kg_key": "Optionnel. Nécessite l'add-on ipmi-server ; non pris en charge par le repli python-ipmi.",
           "ipmi_server_host": "Sous Home Assistant OS, utilisez le nom d'hôte de l'add-on, pas localhost.",
           "addon_interface": "Généralement lanplus. auto laisse ipmitool décider.",
           "addon_extra_params": "Arguments ipmitool optionnels (par ex. suite de chiffrement).",
-          "sensor_types": "Seuls les types sélectionnés sont créés pour les nouveaux capteurs. Par défaut, comportement précédent (tous les types)."
+          "sensor_types": "Seuls les types sélectionnés sont créés pour les nouveaux capteurs. Par défaut, comportement précédent (tous les types).",
+          "backend_preference": "auto = addon d'abord puis RMCP (comportement historique). addon = addon uniquement. rmcp = python-ipmi uniquement (sans sondage addon). Avertissement : le service send_command nécessite l'addon et ne fonctionne pas avec rmcp."
         }
       },
       "reconfigure": {
@@ -71,14 +73,16 @@
           "addon_interface": "Interface ipmitool",
           "addon_extra_params": "Paramètres ipmitool supplémentaires",
           "ignore_checksum_errors": "Ignorer les erreurs de somme de contrôle FRU",
-          "sensor_types": "Types de capteurs à découvrir"
+          "sensor_types": "Types de capteurs à découvrir",
+          "backend_preference": "Préférence de backend de connexion"
         },
         "data_description": {
           "kg_key": "Optionnel. Nécessite l'add-on ipmi-server ; non pris en charge par le repli python-ipmi.",
           "ipmi_server_host": "Sous Home Assistant OS, utilisez le nom d'hôte de l'add-on, pas localhost.",
           "addon_interface": "Généralement lanplus. auto laisse ipmitool décider.",
           "addon_extra_params": "Arguments ipmitool optionnels (par ex. suite de chiffrement).",
-          "sensor_types": "Seuls les types sélectionnés sont créés pour les nouveaux capteurs. Par défaut, comportement précédent (tous les types)."
+          "sensor_types": "Seuls les types sélectionnés sont créés pour les nouveaux capteurs. Par défaut, comportement précédent (tous les types).",
+          "backend_preference": "auto = addon d'abord puis RMCP (comportement historique). addon = addon uniquement. rmcp = python-ipmi uniquement (sans sondage addon). Avertissement : le service send_command nécessite l'addon et ne fonctionne pas avec rmcp."
         }
       },
       "reauth_confirm": {
@@ -88,6 +92,14 @@
           "username": "Nom d'utilisateur",
           "password": "Mot de passe"
         }
+      },
+      "rmcp_warning": {
+        "title": "Mode RMCP uniquement",
+        "description": "Vous avez choisi rmcp (python-ipmi uniquement). Le service send_command ne fonctionnera pas — il nécessite l'addon ipmi-server ou l'API HTTP autonome. Les capteurs et commandes d'alimentation fonctionnent toujours. Validez pour continuer, ou revenez pour choisir auto/addon."
+      },
+      "reconfigure_rmcp_warning": {
+        "title": "Mode RMCP uniquement",
+        "description": "Vous avez choisi rmcp (python-ipmi uniquement). Le service send_command ne fonctionnera pas — il nécessite l'addon ipmi-server ou l'API HTTP autonome. Les capteurs et commandes d'alimentation fonctionnent toujours. Validez pour continuer, ou revenez pour choisir auto/addon."
       }
     }
   },
@@ -132,11 +144,17 @@
         "description": "Les filtres s'appliquent uniquement aux nouveaux capteurs découverts. Les entités existantes restent inchangées jusqu'au rechargement de l'entrée après activation d'un type.",
         "data": {
           "scan_interval": "Intervalle de balayage en secondes",
-          "sensor_types": "Types de capteurs à découvrir"
+          "sensor_types": "Types de capteurs à découvrir",
+          "backend_preference": "Préférence de backend de connexion"
         },
         "data_description": {
-          "sensor_types": "Seuls les types sélectionnés sont créés pour les nouveaux capteurs. Par défaut, comportement précédent (tous les types)."
+          "sensor_types": "Seuls les types sélectionnés sont créés pour les nouveaux capteurs. Par défaut, comportement précédent (tous les types).",
+          "backend_preference": "auto = addon d'abord puis RMCP (comportement historique). addon = addon uniquement. rmcp = python-ipmi uniquement (sans sondage addon). Avertissement : le service send_command nécessite l'addon et ne fonctionne pas avec rmcp."
         }
+      },
+      "rmcp_warning": {
+        "title": "Mode RMCP uniquement",
+        "description": "Vous avez choisi rmcp (python-ipmi uniquement). Le service send_command ne fonctionnera pas — il nécessite l'addon ipmi-server ou l'API HTTP autonome. Les capteurs et commandes d'alimentation fonctionnent toujours. Validez pour continuer, ou revenez pour choisir auto/addon."
       }
     }
   },

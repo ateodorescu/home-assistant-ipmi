@@ -26,9 +26,11 @@ from homeassistant.helpers import config_validation as cv, selector
 
 from . import IpmiServer
 from .const import (
+    BACKEND_PREFERENCE_RMCP,
     CONF_ADDON_INTERFACE,
     CONF_ADDON_PARAMS,
     CONF_ADDON_PORT,
+    CONF_BACKEND_PREFERENCE,
     CONF_IGNORE_CHECKSUM_ERRORS,
     CONF_IPMI_SERVER_HOST,
     CONF_KG_KEY,
@@ -36,6 +38,7 @@ from .const import (
     CONF_SENSOR_TYPES,
     DEFAULT_ADDON_PORT,
     DEFAULT_ALIAS,
+    DEFAULT_BACKEND_PREFERENCE,
     DEFAULT_HOST,
     DEFAULT_INTERFACE_TYPE,
     DEFAULT_IPMI_SERVER_HOST,
@@ -47,6 +50,7 @@ from .const import (
     DEFAULT_SENSOR_TYPES,
     DEFAULT_USERNAME,
     DOMAIN,
+    BACKEND_PREFERENCES,
     PRIVILEGE_LEVELS,
     SENSOR_TYPES,
 )
@@ -148,7 +152,18 @@ _SENSOR_TYPES_SELECTOR = selector.SelectSelector(
     )
 )
 
-_OPTION_KEYS = {CONF_SENSOR_TYPES}
+_BACKEND_PREFERENCE_SELECTOR = vol.All(
+    selector.SelectSelector(
+        selector.SelectSelectorConfig(
+            options=BACKEND_PREFERENCES,
+            multiple=False,
+            mode="dropdown",
+        ),
+    ),
+    vol.Coerce(str),
+)
+
+_OPTION_KEYS = {CONF_SENSOR_TYPES, CONF_BACKEND_PREFERENCE}
 
 
 def _advanced_schema(defaults: Mapping[str, Any] | None = None) -> vol.Schema:
@@ -187,6 +202,12 @@ def _advanced_schema(defaults: Mapping[str, Any] | None = None) -> vol.Schema:
                 CONF_SENSOR_TYPES,
                 default=list(defaults.get(CONF_SENSOR_TYPES, DEFAULT_SENSOR_TYPES)),
             ): _SENSOR_TYPES_SELECTOR,
+            vol.Optional(
+                CONF_BACKEND_PREFERENCE,
+                default=defaults.get(
+                    CONF_BACKEND_PREFERENCE, DEFAULT_BACKEND_PREFERENCE
+                ),
+            ): _BACKEND_PREFERENCE_SELECTOR,
         }
     )
 
@@ -202,6 +223,7 @@ def _advanced_defaults() -> dict[str, Any]:
         CONF_ADDON_PARAMS: None,
         CONF_IGNORE_CHECKSUM_ERRORS: False,
         CONF_SENSOR_TYPES: list(DEFAULT_SENSOR_TYPES),
+        CONF_BACKEND_PREFERENCE: DEFAULT_BACKEND_PREFERENCE,
     }
 
 
@@ -215,10 +237,13 @@ def _entry_data_from_config(config: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def _entry_options_from_config(config: Mapping[str, Any]) -> dict[str, Any]:
-    """Sensor-filter options extracted from flow input."""
+    """Options extracted from flow input (sensor filters + backend preference)."""
     return {
         CONF_SENSOR_TYPES: as_str_list(
             config.get(CONF_SENSOR_TYPES), DEFAULT_SENSOR_TYPES
+        ),
+        CONF_BACKEND_PREFERENCE: config.get(
+            CONF_BACKEND_PREFERENCE, DEFAULT_BACKEND_PREFERENCE
         ),
     }
 
@@ -266,7 +291,7 @@ class IpmiConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for IPMI."""
 
     VERSION = 2
-    MINOR_VERSION = 4
+    MINOR_VERSION = 5
 
     def __init__(self) -> None:
         """Initialize the ipmi config flow."""
@@ -362,6 +387,27 @@ class IpmiConfigFlow(ConfigFlow, domain=DOMAIN):
         if self._alias_already_configured(self.ipmi_config):
             return self.async_abort(reason="already_configured")
 
+        if (
+            self.ipmi_config.get(CONF_BACKEND_PREFERENCE, DEFAULT_BACKEND_PREFERENCE)
+            == BACKEND_PREFERENCE_RMCP
+        ):
+            return await self.async_step_rmcp_warning()
+
+        return await self._async_create_entry_from_config()
+
+    async def async_step_rmcp_warning(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Warn that send_command is unavailable with RMCP-only preference."""
+        if user_input is not None:
+            return await self._async_create_entry_from_config()
+        return self.async_show_form(
+            step_id="rmcp_warning",
+            data_schema=vol.Schema({}),
+        )
+
+    async def _async_create_entry_from_config(self) -> FlowResult:
+        """Persist a new config entry from ``self.ipmi_config``."""
         # Never persist the flow-only advanced checkbox or options keys in data.
         data = _entry_data_from_config(self.ipmi_config)
         options = _entry_options_from_config(self.ipmi_config)
@@ -486,6 +532,38 @@ class IpmiConfigFlow(ConfigFlow, domain=DOMAIN):
         if self._alias_already_configured(data, exclude_entry_id=entry.entry_id):
             return self.async_abort(reason="already_configured")
 
+        previous_backend = entry.options.get(
+            CONF_BACKEND_PREFERENCE, DEFAULT_BACKEND_PREFERENCE
+        )
+        new_backend = self.ipmi_config.get(
+            CONF_BACKEND_PREFERENCE, DEFAULT_BACKEND_PREFERENCE
+        )
+        if (
+            new_backend == BACKEND_PREFERENCE_RMCP
+            and previous_backend != BACKEND_PREFERENCE_RMCP
+        ):
+            return await self.async_step_reconfigure_rmcp_warning()
+
+        return await self._async_apply_reconfigure(entry)
+
+    async def async_step_reconfigure_rmcp_warning(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Warn when reconfigure switches backend preference to RMCP-only."""
+        entry = self._get_reconfigure_entry() if hasattr(
+            self, "_get_reconfigure_entry"
+        ) else self.hass.config_entries.async_get_entry(self.context["entry_id"])
+        assert entry is not None
+        if user_input is not None:
+            return await self._async_apply_reconfigure(entry)
+        return self.async_show_form(
+            step_id="reconfigure_rmcp_warning",
+            data_schema=vol.Schema({}),
+        )
+
+    async def _async_apply_reconfigure(self, entry: ConfigEntry) -> FlowResult:
+        """Write reconfigure data/options and reload."""
+        data = _entry_data_from_config(self.ipmi_config)
         unique_id = format_entry_unique_id(data[CONF_ALIAS])
         for other in self._async_current_entries():
             if other.entry_id != entry.entry_id and other.unique_id == unique_id:
@@ -565,6 +643,7 @@ class OptionsFlowHandler(OptionsFlow):
 
     def __init__(self, config_entry: ConfigEntry) -> None:
         """Initialize options flow."""
+        self._pending_options: dict[str, Any] | None = None
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
@@ -576,14 +655,30 @@ class OptionsFlowHandler(OptionsFlow):
                 user_input[CONF_SENSOR_TYPES] = as_str_list(
                     user_input[CONF_SENSOR_TYPES], DEFAULT_SENSOR_TYPES
                 )
+            if CONF_BACKEND_PREFERENCE not in user_input:
+                user_input[CONF_BACKEND_PREFERENCE] = DEFAULT_BACKEND_PREFERENCE
             # Drop removed option if still present from older versions.
             user_input.pop("diagnostic_sensor_types", None)
+
+            previous_backend = self.config_entry.options.get(
+                CONF_BACKEND_PREFERENCE, DEFAULT_BACKEND_PREFERENCE
+            )
+            if (
+                user_input.get(CONF_BACKEND_PREFERENCE) == BACKEND_PREFERENCE_RMCP
+                and previous_backend != BACKEND_PREFERENCE_RMCP
+            ):
+                self._pending_options = user_input
+                return await self.async_step_rmcp_warning()
+
             return self.async_create_entry(title="", data=user_input)
 
         options = self.config_entry.options
         scan_interval = options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
         sensor_types = as_str_list(
             options.get(CONF_SENSOR_TYPES), DEFAULT_SENSOR_TYPES
+        )
+        backend_preference = options.get(
+            CONF_BACKEND_PREFERENCE, DEFAULT_BACKEND_PREFERENCE
         )
 
         base_schema = {
@@ -593,9 +688,25 @@ class OptionsFlowHandler(OptionsFlow):
             vol.Optional(
                 CONF_SENSOR_TYPES, default=list(sensor_types)
             ): _SENSOR_TYPES_SELECTOR,
+            vol.Optional(
+                CONF_BACKEND_PREFERENCE, default=backend_preference
+            ): _BACKEND_PREFERENCE_SELECTOR,
         }
 
         return self.async_show_form(step_id="init", data_schema=vol.Schema(base_schema))
+
+    async def async_step_rmcp_warning(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Warn that send_command is unavailable with RMCP-only preference."""
+        if user_input is not None:
+            return self.async_create_entry(
+                title="", data=self._pending_options or {}
+            )
+        return self.async_show_form(
+            step_id="rmcp_warning",
+            data_schema=vol.Schema({}),
+        )
 
 
 class CannotConnect(exceptions.HomeAssistantError):

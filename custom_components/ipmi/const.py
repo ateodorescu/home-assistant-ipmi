@@ -97,3 +97,19 @@ CONF_SENSOR_TYPES = "sensor_types"
 # Missing options = today's behavior: discover all types.
 DEFAULT_SENSOR_TYPES = list(SENSOR_TYPES)
 
+# Connection backend preference (options). Default "auto" preserves addon-first fallback.
+CONF_BACKEND_PREFERENCE = "backend_preference"
+BACKEND_PREFERENCE_AUTO = "auto"
+BACKEND_PREFERENCE_ADDON = "addon"
+BACKEND_PREFERENCE_RMCP = "rmcp"
+DEFAULT_BACKEND_PREFERENCE = BACKEND_PREFERENCE_AUTO
+BACKEND_PREFERENCES = [
+    BACKEND_PREFERENCE_AUTO,
+    BACKEND_PREFERENCE_ADDON,
+    BACKEND_PREFERENCE_RMCP,
+]
+
+# After this many consecutive addon transport failures, briefly skip probing (auto mode).
+ADDON_FAILURE_SKIP_THRESHOLD = 3
+ADDON_SKIP_SECONDS = 300
+

@@ -38,14 +38,16 @@
           "addon_interface": "Διεπαφή ipmitool",
           "addon_extra_params": "Επιπλέον παράμετροι ipmitool",
           "ignore_checksum_errors": "Αγνόηση σφαλμάτων αθροίσματος ελέγχου FRU",
-          "sensor_types": "Τύποι αισθητήρων προς ανακάλυψη"
+          "sensor_types": "Τύποι αισθητήρων προς ανακάλυψη",
+          "backend_preference": "Προτίμηση backend σύνδεσης"
         },
         "data_description": {
           "kg_key": "Προαιρετικό. Απαιτεί το addon ipmi-server· δεν υποστηρίζεται από το python-ipmi fallback.",
           "ipmi_server_host": "Στο Home Assistant OS χρησιμοποιήστε το hostname του addon, όχι localhost.",
           "addon_interface": "Συνήθως lanplus. Το auto αφήνει το ipmitool να αποφασίσει.",
           "addon_extra_params": "Προαιρετικά ορίσματα ipmitool (π.χ. cipher suite).",
-          "sensor_types": "Μόνο οι επιλεγμένοι τύποι δημιουργούνται για νέους αισθητήρες. Η προεπιλογή αντιστοιχεί στην προηγούμενη συμπεριφορά (όλοι οι τύποι)."
+          "sensor_types": "Μόνο οι επιλεγμένοι τύποι δημιουργούνται για νέους αισθητήρες. Η προεπιλογή αντιστοιχεί στην προηγούμενη συμπεριφορά (όλοι οι τύποι).",
+          "backend_preference": "auto = πρώτα addon μετά RMCP (ιστορική προεπιλογή). addon = μόνο addon. rmcp = μόνο python-ipmi (χωρίς δοκιμές addon). Προειδοποίηση: η υπηρεσία send_command απαιτεί το addon και δεν λειτουργεί με rmcp."
         }
       },
       "reconfigure": {
@@ -71,14 +73,16 @@
           "addon_interface": "Διεπαφή ipmitool",
           "addon_extra_params": "Επιπλέον παράμετροι ipmitool",
           "ignore_checksum_errors": "Αγνόηση σφαλμάτων αθροίσματος ελέγχου FRU",
-          "sensor_types": "Τύποι αισθητήρων προς ανακάλυψη"
+          "sensor_types": "Τύποι αισθητήρων προς ανακάλυψη",
+          "backend_preference": "Προτίμηση backend σύνδεσης"
         },
         "data_description": {
           "kg_key": "Προαιρετικό. Απαιτεί το addon ipmi-server· δεν υποστηρίζεται από το python-ipmi fallback.",
           "ipmi_server_host": "Στο Home Assistant OS χρησιμοποιήστε το hostname του addon, όχι localhost.",
           "addon_interface": "Συνήθως lanplus. Το auto αφήνει το ipmitool να αποφασίσει.",
           "addon_extra_params": "Προαιρετικά ορίσματα ipmitool (π.χ. cipher suite).",
-          "sensor_types": "Μόνο οι επιλεγμένοι τύποι δημιουργούνται για νέους αισθητήρες. Η προεπιλογή αντιστοιχεί στην προηγούμενη συμπεριφορά (όλοι οι τύποι)."
+          "sensor_types": "Μόνο οι επιλεγμένοι τύποι δημιουργούνται για νέους αισθητήρες. Η προεπιλογή αντιστοιχεί στην προηγούμενη συμπεριφορά (όλοι οι τύποι).",
+          "backend_preference": "auto = πρώτα addon μετά RMCP (ιστορική προεπιλογή). addon = μόνο addon. rmcp = μόνο python-ipmi (χωρίς δοκιμές addon). Προειδοποίηση: η υπηρεσία send_command απαιτεί το addon και δεν λειτουργεί με rmcp."
         }
       },
       "reauth_confirm": {
@@ -88,6 +92,14 @@
           "username": "Όνομα χρήστη",
           "password": "Κωδικός"
         }
+      },
+      "rmcp_warning": {
+        "title": "Λειτουργία μόνο RMCP",
+        "description": "Επιλέξατε rmcp (μόνο python-ipmi). Η υπηρεσία send_command δεν θα λειτουργεί — απαιτεί το addon ipmi-server ή το standalone HTTP API. Οι αισθητήρες και ο έλεγχος ισχύος συνεχίζουν να λειτουργούν. Υποβάλετε για συνέχεια, ή επιστρέψτε για auto/addon."
+      },
+      "reconfigure_rmcp_warning": {
+        "title": "Λειτουργία μόνο RMCP",
+        "description": "Επιλέξατε rmcp (μόνο python-ipmi). Η υπηρεσία send_command δεν θα λειτουργεί — απαιτεί το addon ipmi-server ή το standalone HTTP API. Οι αισθητήρες και ο έλεγχος ισχύος συνεχίζουν να λειτουργούν. Υποβάλετε για συνέχεια, ή επιστρέψτε για auto/addon."
       }
     }
   },
@@ -132,11 +144,17 @@
         "description": "Τα φίλτρα ισχύουν μόνο για νέους αισθητήρες. Οι υπάρχουσες οντότητες παραμένουν ως έχουν μέχρι την επαναφόρτωση της καταχώρησης μετά την ενεργοποίηση ενός τύπου.",
         "data": {
           "scan_interval": "Μεσοδιάστημα Σάρωσης (δευτερόλεπτα)",
-          "sensor_types": "Τύποι αισθητήρων προς ανακάλυψη"
+          "sensor_types": "Τύποι αισθητήρων προς ανακάλυψη",
+          "backend_preference": "Προτίμηση backend σύνδεσης"
         },
         "data_description": {
-          "sensor_types": "Μόνο οι επιλεγμένοι τύποι δημιουργούνται για νέους αισθητήρες. Η προεπιλογή αντιστοιχεί στην προηγούμενη συμπεριφορά (όλοι οι τύποι)."
+          "sensor_types": "Μόνο οι επιλεγμένοι τύποι δημιουργούνται για νέους αισθητήρες. Η προεπιλογή αντιστοιχεί στην προηγούμενη συμπεριφορά (όλοι οι τύποι).",
+          "backend_preference": "auto = πρώτα addon μετά RMCP (ιστορική προεπιλογή). addon = μόνο addon. rmcp = μόνο python-ipmi (χωρίς δοκιμές addon). Προειδοποίηση: η υπηρεσία send_command απαιτεί το addon και δεν λειτουργεί με rmcp."
         }
+      },
+      "rmcp_warning": {
+        "title": "Λειτουργία μόνο RMCP",
+        "description": "Επιλέξατε rmcp (μόνο python-ipmi). Η υπηρεσία send_command δεν θα λειτουργεί — απαιτεί το addon ipmi-server ή το standalone HTTP API. Οι αισθητήρες και ο έλεγχος ισχύος συνεχίζουν να λειτουργούν. Υποβάλετε για συνέχεια, ή επιστρέψτε για auto/addon."
       }
     }
   },

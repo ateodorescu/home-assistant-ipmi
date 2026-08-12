@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict
 import logging
-from typing import Final, cast
+from typing import Final
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -14,7 +13,6 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
-    STATE_UNKNOWN,
     STATE_OFF,
     STATE_ON,
     EntityCategory,
@@ -26,7 +24,6 @@ from homeassistant.const import (
     REVOLUTIONS_PER_MINUTE,
 )
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.update_coordinator import (
@@ -37,19 +34,16 @@ from homeassistant.helpers.dispatcher import (
     async_dispatcher_connect,
 )
 
-from . import IpmiServer
-from .helpers import get_ipmi_data, get_ipmi_server
+from .helpers import device_info_from_ipmi_server, get_ipmi_data, get_ipmi_server
 from .const import (
     CONF_SENSOR_TYPES,
     COORDINATOR,
     DEFAULT_SENSOR_TYPES,
-    DOMAIN,
     KEY_CONNECTION_BACKEND,
     KEY_STATUS,
     IPMI_DATA,
     IPMI_UNIQUE_ID,
     IPMI_NEW_SENSOR_SIGNAL,
-    IPMI_DEV_INFO_TO_DEV_INFO,
     DISPATCHERS,
     SENSOR_TYPE_CURRENT,
     SENSOR_TYPE_FAN,
@@ -58,6 +52,7 @@ from .const import (
     SENSOR_TYPE_TIME,
     SENSOR_TYPE_VOLTAGE,
 )
+from .server import IpmiServer
 from .util import as_str_list
 
 _LOGGER = logging.getLogger(__name__)
@@ -103,18 +98,6 @@ _DYNAMIC_SENSOR_SPECS: Final[dict[str, dict]] = {
         "entity_registry_enabled_default": True,
     },
 }
-
-
-def _get_ipmi_device_info(data: IpmiServer) -> DeviceInfo:
-    """Return a DeviceInfo object filled with IPMI device info."""
-    ipmi_dev_infos = asdict(data.device_info)["device"]
-    ipmi_infos = {
-        info_key: ipmi_dev_infos[ipmi_key]
-        for ipmi_key, info_key in IPMI_DEV_INFO_TO_DEV_INFO.items()
-        if ipmi_dev_infos[ipmi_key] is not None
-    }
-
-    return cast(DeviceInfo, ipmi_infos)
 
 
 async def async_setup_entry(
@@ -249,13 +232,9 @@ class IpmiSensor(
         super().__init__(coordinator)
         self.entity_description = sensor_description
 
-        device_name = data.name.title()
+        # unique_id scheme kept for BC: {entry_id}_{alias}_{key}
         self._attr_unique_id = f"{unique_id}_{data._alias}_{sensor_description.key}"
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, unique_id)},
-            name=device_name,
-        )
-        self._attr_device_info.update(_get_ipmi_device_info(data))
+        self._attr_device_info = device_info_from_ipmi_server(data, unique_id)
 
     @property
     def available(self) -> bool:
@@ -273,7 +252,7 @@ class IpmiSensor(
             return state is not None
 
     @property
-    def native_value(self) -> str | None:
+    def native_value(self) -> str | float | None:
         """Return entity state from server states."""
         status = self.coordinator.data
 
@@ -290,8 +269,8 @@ class IpmiSensor(
 
             if state is not None:
                 return float(state)
-            else:
-                return STATE_UNKNOWN
+            # Missing reading → None (not STATE_UNKNOWN) for numeric sensors.
+            return None
 
 
 class IpmiConnectionBackendSensor(
@@ -319,11 +298,7 @@ class IpmiConnectionBackendSensor(
         self.entity_description = sensor_description
         self.ipmi_data = data
         self._attr_unique_id = f"{unique_id}_{data._alias}_{sensor_description.key}"
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, unique_id)},
-            name=data.name.title(),
-        )
-        self._attr_device_info.update(_get_ipmi_device_info(data))
+        self._attr_device_info = device_info_from_ipmi_server(data, unique_id)
 
     async def async_added_to_hass(self) -> None:
         """Run when entity is added; re-enable if previously integration-disabled."""

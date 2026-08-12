@@ -68,8 +68,9 @@ Integration options (Configure) and advanced setup / reconfigure:
 
 - **Scan interval** (seconds) — coordinator poll period (options only)
 - **Sensor types to discover** — which groups are created for *newly discovered* sensors (default: all)
+- **Connection backend preference** — `auto` (default: try addon first, then RMCP), `addon` (addon only), or `rmcp` (python-ipmi only; skips addon probes). Default matches historical behavior.
 
-During initial setup or reconfigure, enable **Configure advanced options** to set sensor filters. The same filters remain editable later under **Configure**.
+During initial setup or reconfigure, enable **Configure advanced options** to set sensor filters and backend preference. The same settings remain editable later under **Configure**.
 Changing filters does not remove already created entities; enabling a type later can create new ones after reload.
 
 ### Reconfigure and reauthentication
@@ -83,7 +84,9 @@ Download diagnostics from the device/integration page. Output is redacted (passw
 
 ### `send_command` service
 
-Sends a custom ipmitool-style command through the addon HTTP API only. Placeholders `$host$`, `$port$`, `$username$`, and `$password$` are substituted.
+Sends a custom ipmitool-style command through the addon HTTP API only (not available on RMCP-only connections). Placeholders `$host$`, `$port$`, `$username$`, and `$password$` are substituted. If the addon is unreachable or backend preference is `rmcp`, the service returns a clear error (or an empty message when *Ignore errors* is enabled).
+
+The addon API uses GET with query parameters. POST is only used if it has already proven to return a successful payload (current addon builds ignore JSON bodies).
 
 ## Identity and uniqueness
 
@@ -93,5 +96,6 @@ Sends a custom ipmitool-style command through the addon HTTP API only. Placehold
 
 ## Compatibility notes
 
-- Do not rely on entity unique IDs surviving a remove/re-add
+- Do not rely on entity unique IDs surviving a remove/re-add (scheme stays `{entry_id}_{alias}_{key}` for backward compatibility; it is **not** migrated to alias-only IDs)
 - State sensor, device actions, and the `send_command` service are kept for backward compatibility alongside buttons and the power binary sensor
+- Default `backend_preference=auto` preserves addon-first then RMCP fallback

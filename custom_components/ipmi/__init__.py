@@ -25,12 +25,14 @@ from .const import (
     CONF_ADDON_INTERFACE,
     CONF_ADDON_PARAMS,
     CONF_ADDON_PORT,
+    CONF_BACKEND_PREFERENCE,
     CONF_IGNORE_CHECKSUM_ERRORS,
     CONF_IPMI_SERVER_HOST,
     CONF_KG_KEY,
     CONF_PRIVILEGE_LEVEL,
     CONF_SENSOR_TYPES,
     COORDINATOR,
+    DEFAULT_BACKEND_PREFERENCE,
     DEFAULT_KG_KEY,
     DEFAULT_PRIVILEGE_LEVEL,
     DEFAULT_SCAN_INTERVAL,
@@ -76,6 +78,22 @@ def _ensure_entry_unique_id(hass: HomeAssistant, entry: ConfigEntry) -> None:
     hass.config_entries.async_update_entry(entry, unique_id=unique_id)
 
 
+def _normalize_options(options: dict) -> dict:
+    """Apply additive defaults without changing prior behavior."""
+    new_options = dict(options)
+    new_options.pop("diagnostic_sensor_types", None)
+    if CONF_SENSOR_TYPES not in new_options:
+        new_options[CONF_SENSOR_TYPES] = list(DEFAULT_SENSOR_TYPES)
+    else:
+        new_options[CONF_SENSOR_TYPES] = as_str_list(
+            new_options[CONF_SENSOR_TYPES], DEFAULT_SENSOR_TYPES
+        )
+    if CONF_BACKEND_PREFERENCE not in new_options:
+        # auto = historical addon-first then RMCP behavior
+        new_options[CONF_BACKEND_PREFERENCE] = DEFAULT_BACKEND_PREFERENCE
+    return new_options
+
+
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up the IPMI component."""
     hass.data.setdefault(DOMAIN, IpmiData(servers={}, dispatchers={}))
@@ -109,29 +127,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # strip out the stale options CONF_RESOURCES,
     # maintain the entry in data in case of version rollback
-    new_options = dict(entry.options)
+    new_options = _normalize_options(dict(entry.options))
     update_kwargs: dict = {}
-    if CONF_RESOURCES in new_options:
+    if CONF_RESOURCES in entry.options:
         update_kwargs["data"] = {
             **entry.data,
-            CONF_RESOURCES: new_options.pop(CONF_RESOURCES),
+            CONF_RESOURCES: entry.options[CONF_RESOURCES],
         }
-
-    # Additive Phase 3 defaults: discover all sensor types.
-    # Drop removed diagnostic_sensor_types option from older builds.
-    new_options.pop("diagnostic_sensor_types", None)
-    if CONF_SENSOR_TYPES not in new_options:
-        new_options[CONF_SENSOR_TYPES] = list(DEFAULT_SENSOR_TYPES)
-    else:
-        new_options[CONF_SENSOR_TYPES] = as_str_list(
-            new_options[CONF_SENSOR_TYPES], DEFAULT_SENSOR_TYPES
-        )
+        new_options.pop(CONF_RESOURCES, None)
 
     if update_kwargs or new_options != dict(entry.options):
         update_kwargs["options"] = new_options
         hass.config_entries.async_update_entry(entry, **update_kwargs)
 
     config = entry.data
+    options = entry.options
 
     # keep backward compatibility
     ipmi_server_host = config.get(CONF_IPMI_SERVER_HOST)
@@ -139,7 +149,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if ipmi_server_host is None:
         ipmi_server_host = "http://localhost"
 
-    scan_interval = entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+    scan_interval = options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+    backend_preference = options.get(
+        CONF_BACKEND_PREFERENCE, DEFAULT_BACKEND_PREFERENCE
+    )
 
     data = IpmiServer(
         hass,
@@ -159,6 +172,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             "addon_interface": config.get(CONF_ADDON_INTERFACE),
             "addon_extra_params": config.get(CONF_ADDON_PARAMS),
             CONF_IGNORE_CHECKSUM_ERRORS: config.get(CONF_IGNORE_CHECKSUM_ERRORS, False),
+            "backend_preference": backend_preference,
         },
     )
     coordinator = IpmiCoordinator(hass, scan_interval, data)
@@ -182,13 +196,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass_data[DISPATCHERS].setdefault(server_id, [])
 
     device_registry = dr.async_get(hass)
+    device = deviceInfo.device if deviceInfo else {}
     device_registry.async_get_or_create(
         config_entry_id=server_id,
         identifiers={(DOMAIN, server_id.lower())},
         name=data.name.title(),
-        manufacturer=data._device_info.device["manufacturer_name"],
-        model=data._device_info.device["product_name"],
-        sw_version=data._device_info.device["firmware_revision"],
+        manufacturer=device.get("manufacturer_name"),
+        model=device.get("product_name"),
+        sw_version=device.get("firmware_revision"),
     )
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
@@ -202,7 +217,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass_data = get_ipmi_data(hass)
         for unsub in hass_data[DISPATCHERS].pop(entry.entry_id, []):
             unsub()
-        hass_data[SERVERS].pop(entry.entry_id, None)
+        server = hass_data[SERVERS].pop(entry.entry_id, None)
+        if server and IPMI_DATA in server:
+            await hass.async_add_executor_job(server[IPMI_DATA].close)
     return unload_ok
 
 
@@ -264,6 +281,13 @@ async def async_migrate_entry(hass, config_entry: ConfigEntry):
                 unique_id = candidate
         hass.config_entries.async_update_entry(
             config_entry, unique_id=unique_id, minor_version=4, version=2
+        )
+
+    # Migrate to version 2.5 - backend_preference option (default auto = prior behavior)
+    if config_entry.version == 2 and config_entry.minor_version < 5:
+        new_options = _normalize_options(dict(config_entry.options))
+        hass.config_entries.async_update_entry(
+            config_entry, options=new_options, minor_version=5, version=2
         )
 
     _LOGGER.debug(

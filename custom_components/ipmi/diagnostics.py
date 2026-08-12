@@ -9,7 +9,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_PASSWORD
 from homeassistant.core import HomeAssistant
 
-from .const import CONF_KG_KEY, COORDINATOR, IPMI_DATA
+from .const import CONF_KG_KEY, COORDINATOR, DEFAULT_BACKEND_PREFERENCE, IPMI_DATA
 from .helpers import get_ipmi_server
 
 TO_REDACT = {CONF_PASSWORD, CONF_KG_KEY, "password", "kg_key"}
@@ -40,11 +40,20 @@ async def async_get_config_entry_diagnostics(
         },
         "connection": {
             "backend": data.last_backend,
+            "backend_preference": getattr(
+                data, "_backend_preference", DEFAULT_BACKEND_PREFERENCE
+            ),
             "auth_failed": data.auth_failed,
             "addon_url": data._addon_url,
+            "addon_use_post": data._addon_use_post,
             "host": data._host,
             "port": data._port,
             "last_rmcp_error": data._last_rmcp_error,
+        },
+        "compatibility": {
+            # Intentionally entry-id based; remove/re-add creates new entity unique IDs.
+            "entity_unique_id_scheme": "{entry_id}_{alias}_{key}",
+            "config_entry_unique_id": "alias (lowercase)",
         },
         "coordinator": {
             "last_update_success": coordinator.last_update_success,

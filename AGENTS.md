@@ -46,7 +46,15 @@ Do not add code outside `custom_components/ipmi/` unless the task is docs, CI, t
 
 ### Connection backends (prefer addon)
 
-`IpmiServer.update()` tries the **ipmi-server addon / standalone HTTP API** first, then falls back to **python-ipmi (RMCP)**.
+`IpmiServer.update()` honors **backend_preference** (options, default `auto`):
+
+| Preference | Behavior |
+|---|---|
+| `auto` (default) | Addon / standalone HTTP first, then python-ipmi (RMCP). After repeated addon transport failures, briefly skip probing. |
+| `addon` | Addon only (no RMCP fallback) |
+| `rmcp` | python-ipmi only (skips addon probes) |
+
+Addon HTTP uses **GET** (query params; supported by current addons). POST is only used after a successful probe.
 
 | Capability | Addon / standalone | python-ipmi |
 |---|---|---|
@@ -56,7 +64,7 @@ Do not add code outside `custom_components/ipmi/` unless the task is docs, CI, t
 | Custom `send_command` | yes only | no |
 | Kg key (RMCP+) | yes | ignored (warning logged) |
 
-When changing connection or auth behavior, keep addon-first fallback and preserve both paths unless the task explicitly drops one.
+When changing connection or auth behavior, keep addon-first fallback as the **default** (`auto`) and preserve both paths unless the task explicitly drops one.
 
 ## Compatibility rules
 

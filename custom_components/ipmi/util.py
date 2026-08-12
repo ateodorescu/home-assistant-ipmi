@@ -17,6 +17,21 @@ _AUTH_ERROR_MARKERS = (
     "invalid user",
 )
 
+# IPMI sensor type codes (Table 42-3) → integration sensor groups.
+_RMCP_SENSOR_TYPE_TO_CATEGORY: dict[int, str] = {
+    0x01: "temperature",
+    0x02: "voltage",
+    0x03: "current",
+    0x04: "fan",
+}
+
+# IPMI unit type codes (Table 43-15) on full/compact records.
+_RMCP_UNIT_TO_CATEGORY: dict[int, str] = {
+    0x05: "current",  # Amps
+    0x06: "power",  # Watts
+    0x15: "time",  # seconds
+}
+
 
 def format_entry_unique_id(alias: str) -> str:
     """Stable config-entry unique_id from the user-chosen server alias."""
@@ -92,3 +107,22 @@ def validate_kg_key(value: str | None) -> str:
             "Kg key must contain only hexadecimal characters (0-9, A-F)"
         ) from err
     return value.upper()
+
+
+def categorize_rmcp_sensor(
+    sensor_type_code: int | None,
+    units_2: int | None,
+) -> str | None:
+    """Map RMCP SDR type/units to a sensor group name, or None if unsupported."""
+    if sensor_type_code is not None:
+        category = _RMCP_SENSOR_TYPE_TO_CATEGORY.get(sensor_type_code)
+        if category is not None:
+            return category
+    if units_2 is not None:
+        return _RMCP_UNIT_TO_CATEGORY.get(units_2)
+    return None
+
+
+def addon_action_succeeded(response: dict[str, Any] | None) -> bool:
+    """Return True when an addon HTTP JSON payload indicates success."""
+    return bool(response) and bool(response.get("success"))
