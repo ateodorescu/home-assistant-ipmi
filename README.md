@@ -1,47 +1,97 @@
 # IPMI connector for Home Assistant
 
 ## What is IPMI?
+
 IPMI (Intelligent Platform Management Interface) is a set of standardized specifications for
 hardware-based platform management systems that makes it possible to control and monitor servers centrally.
 
 ## Home Assistant integration
-This integration allows you to monitor and control servers that support IPMI.
-It can connect to your servers in three ways:
-- via the `ipmi-server` addon from [here](https://github.com/ateodorescu/home-assistant-addons) which is
-    basically a wrapper for `ipmitool`.
-- via the `ipmi-server-standalone` docker container.
-    
-        docker pull ghcr.io/ateodorescu/ipmi-server-standalone:latest
 
-- via the Python library [python-ipmi](https://github.com/kontron/python-ipmi)
-which hasn't been tested with all servers.
+This integration monitors and controls servers that support IPMI. It can connect in three ways:
 
+- via the `ipmi-server` addon from [home-assistant-addons](https://github.com/ateodorescu/home-assistant-addons) (wrapper around `ipmitool`)
+- via the `ipmi-server-standalone` Docker container:
 
-If the `ipmi-server` addon is installed and started then this will be primarily used,
-and then it will fall back to the Python library if the addon is not reachable.
+  ```bash
+  docker pull ghcr.io/ateodorescu/ipmi-server-standalone:latest
+  ```
+
+- via the Python library [python-ipmi](https://github.com/kontron/python-ipmi) (RMCP fallback)
+
+If the addon / standalone HTTP API is reachable it is used first; otherwise the integration falls back to python-ipmi.
+
+### Addon vs RMCP capabilities
+
+| Capability | Addon / standalone | python-ipmi (RMCP) |
+|---|---|---|
+| Temperature / fan / voltage sensors | yes | yes |
+| Current / power / time sensors | yes (when BMC exposes them) | yes when SDR type/units map (Amps / Watts / seconds) |
+| Chassis power commands | yes | yes |
+| Custom `send_command` service | yes only | no |
+| Kg key (RMCP+) | yes | ignored (warning logged) |
+| Connection backend diagnostic | shows `addon` | shows `rmcp` |
 
 ## Installation
-Install it via HACS or just copy the `custom_components` folder in your home assistant `config` folder.
-Restart HASS and then add the `ipmi` integration.
 
-## What does the integration?
-The component allows you to configure multiple servers that have unique aliases.
-For each server that you configure the component will add all available `sensors`, 5 `actions` and 1 `switch`.
+Install via HACS or copy the `custom_components` folder into your Home Assistant `config` folder.
+Restart Home Assistant, then add the **IPMI** integration.
 
-The following `sensors` will be added:
-- all temperature sensors
-- all fan sensors
-- all voltage sensors
-- all power sensors (the Python library can't extract these)
+## Entities and controls
 
-The following `actions` are added:
-- power on
-- power off
-- power cycle
-- power reset
-- soft shutdown
+Each configured server (unique alias + BMC host/port) can expose:
 
-The `switch` allows you to turn on the server and shut it down gracefully.
+**Sensors**
 
-There is a `send command` service available too, which allows you to send custom commands
-to the server. This works only when the `ipmi-server` addon is used.
+- **State** — textual on/off power state (kept for backward compatibility)
+- Dynamic SDR sensors: temperature, fan, voltage, power, current, time (discovery depends on the BMC and backend; not marked diagnostic)
+- **Connection backend** — diagnostic entity (`addon` / `rmcp` / `none`), enabled by default
+
+**Binary sensor**
+
+- **Power** — `binary_sensor` with device class power (same signal as State; State sensor is not removed)
+
+**Switch**
+
+- Power on / soft shutdown
+
+**Buttons**
+
+- Power on, power off, power cycle, power reset, soft shutdown
+
+**Device actions**
+
+- The same power commands remain available as device actions for existing automations
+
+### Options
+
+Integration options (Configure) and advanced setup / reconfigure:
+
+- **Scan interval** (seconds) — coordinator poll period (options only)
+- **Sensor types to discover** — which groups are created for *newly discovered* sensors (default: all)
+
+During initial setup or reconfigure, enable **Configure advanced options** to set sensor filters. The same filters remain editable later under **Configure**.
+Changing filters does not remove already created entities; enabling a type later can create new ones after reload.
+
+### Reconfigure and reauthentication
+
+- Use **Reconfigure** on the integration entry to update host, port, credentials, addon URL, Kg key, and related settings
+- If authentication fails clearly, Home Assistant may prompt for **reauthentication** (username/password)
+
+### Diagnostics
+
+Download diagnostics from the device/integration page. Output is redacted (password and Kg key stripped) and includes backend, device info, and sensor key lists.
+
+### `send_command` service
+
+Sends a custom ipmitool-style command through the addon HTTP API only. Placeholders `$host$`, `$port$`, `$username$`, and `$password$` are substituted.
+
+## Identity and uniqueness
+
+- Config entries use a stable `unique_id` from the **alias** (lowercase) for duplicate detection — the same BMC host may be added more than once with different aliases
+- Entity `unique_id`s remain based on the config entry id + alias + sensor key
+- **Removing and re-adding** an entry creates a new config entry id, so entity unique IDs change and history/automations tied to those entity IDs may need updating
+
+## Compatibility notes
+
+- Do not rely on entity unique IDs surviving a remove/re-add
+- State sensor, device actions, and the `send_command` service are kept for backward compatibility alongside buttons and the power binary sensor

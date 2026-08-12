@@ -1,58 +1,152 @@
 {
-    "config": {
-        "abort": {
-            "already_configured": "L'appareil est déjà configuré"
+  "config": {
+    "abort": {
+      "already_configured": "L'appareil est déjà configuré",
+      "reconfigure_successful": "Reconfiguration réussie",
+      "reauth_successful": "Réauthentification réussie"
+    },
+    "error": {
+      "cannot_connect": "Échec de la connexion",
+      "unknown": "Erreur inattendue"
+    },
+    "step": {
+      "user": {
+        "title": "Se connecter au serveur IPMI",
+        "description": "Saisissez les informations de connexion BMC. Laissez les options avancées décochées sauf si vous avez besoin des paramètres d'addon, de clé Kg ou de privilège.",
+        "data": {
+          "alias": "Alias",
+          "host": "Hôte",
+          "password": "Mot de passe",
+          "port": "Port",
+          "username": "Nom d'utilisateur",
+          "advanced": "Configurer les options avancées"
         },
-        "error": {
-            "cannot_connect": "Échec de la connexion",
-            "unknown": "Erreur inattendue"
+        "data_description": {
+          "host": "Nom d'hôte ou adresse IP du BMC",
+          "port": "Port IPMI / RMCP (généralement 623)",
+          "advanced": "URL de l'addon, interface, clé Kg, niveau de privilège et options de somme de contrôle FRU"
+        }
+      },
+      "advanced": {
+        "title": "Paramètres IPMI avancés",
+        "description": "Les valeurs par défaut conviennent à la plupart des installations. Utilisez l'hôte/port de l'addon lorsque l'add-on ipmi-server ou le conteneur autonome est disponible. Les filtres de capteurs s'appliquent aux nouvelles découvertes.",
+        "data": {
+          "kg_key": "Clé de chiffrement Kg (hex, max 40 caractères)",
+          "privilege_level": "Niveau de privilège",
+          "ipmi_server_host": "Hôte ipmi-server",
+          "addon_port": "Port ipmi-server",
+          "addon_interface": "Interface ipmitool",
+          "addon_extra_params": "Paramètres ipmitool supplémentaires",
+          "ignore_checksum_errors": "Ignorer les erreurs de somme de contrôle FRU",
+          "sensor_types": "Types de capteurs à découvrir"
         },
-        "step": {
-            "user": {
-                "data": {
-                    "alias": "Alias",
-                    "host": "Hôte",
-                    "password": "Mot de passe",
-                    "port": "Port",
-                    "username": "Nom d'utilisateur",
-                    "kg_key": "Clé de chiffrement Kg (hex, max 40 caractères)",
-                    "privilege_level": "Niveau de privilège",
-                    "ipmi_server_host": "Hôte du serveur ipmi (lorsque le serveur ipmi est utilisé)",
-                    "addon_port": "Port de l'addon (lorsque l'addon du serveur ipmi est utilisé)",
-                    "addon_interface": "Type d'interface de l'addon pour ipmitool",
-                    "addon_extra_params": "Paramètres supplémentaires de l'addon pour ipmitool (par ex. chiffrement)",
-                    "ignore_checksum_errors": "Ignorer les erreurs de somme de contrôle FRU"
-                },
-                "data_description": {
-                    "kg_key": "Optionnel. Cette fonctionnalité nécessite le backend de l'add-on ipmi-server et n'est pas prise en charge par la bibliothèque python-ipmi."
-                },
-                "title": "Se connecter au serveur IPMI"
-            }
+        "data_description": {
+          "kg_key": "Optionnel. Nécessite l'add-on ipmi-server ; non pris en charge par le repli python-ipmi.",
+          "ipmi_server_host": "Sous Home Assistant OS, utilisez le nom d'hôte de l'add-on, pas localhost.",
+          "addon_interface": "Généralement lanplus. auto laisse ipmitool décider.",
+          "addon_extra_params": "Arguments ipmitool optionnels (par ex. suite de chiffrement).",
+          "sensor_types": "Seuls les types sélectionnés sont créés pour les nouveaux capteurs. Par défaut, comportement précédent (tous les types)."
         }
-    },
-    "entity": {
-        "switch": {
-            "chassis": {
-                "name": "Allumer / Arrêt (logiciel)"
-            }
+      },
+      "reconfigure": {
+        "title": "Reconfigurer le serveur IPMI",
+        "description": "Mettre à jour les détails de connexion BMC pour cette entrée.",
+        "data": {
+          "alias": "Alias",
+          "host": "Hôte",
+          "password": "Mot de passe",
+          "port": "Port",
+          "username": "Nom d'utilisateur",
+          "advanced": "Configurer les options avancées"
         }
-    },
-    "options": {
-        "step": {
-            "init": {
-                "data": {
-                    "scan_interval": "Intervalle de balayage en secondes"
-                }
-            }
+      },
+      "reconfigure_advanced": {
+        "title": "Paramètres IPMI avancés",
+        "description": "Les valeurs par défaut conviennent à la plupart des installations. Utilisez l'hôte/port de l'addon lorsque l'add-on ipmi-server ou le conteneur autonome est disponible. Les filtres de capteurs s'appliquent aux nouvelles découvertes.",
+        "data": {
+          "kg_key": "Clé de chiffrement Kg (hex, max 40 caractères)",
+          "privilege_level": "Niveau de privilège",
+          "ipmi_server_host": "Hôte ipmi-server",
+          "addon_port": "Port ipmi-server",
+          "addon_interface": "Interface ipmitool",
+          "addon_extra_params": "Paramètres ipmitool supplémentaires",
+          "ignore_checksum_errors": "Ignorer les erreurs de somme de contrôle FRU",
+          "sensor_types": "Types de capteurs à découvrir"
+        },
+        "data_description": {
+          "kg_key": "Optionnel. Nécessite l'add-on ipmi-server ; non pris en charge par le repli python-ipmi.",
+          "ipmi_server_host": "Sous Home Assistant OS, utilisez le nom d'hôte de l'add-on, pas localhost.",
+          "addon_interface": "Généralement lanplus. auto laisse ipmitool décider.",
+          "addon_extra_params": "Arguments ipmitool optionnels (par ex. suite de chiffrement).",
+          "sensor_types": "Seuls les types sélectionnés sont créés pour les nouveaux capteurs. Par défaut, comportement précédent (tous les types)."
         }
-    },
-    "device_automation": {
-        "action_type": {
-            "power_on": "Allumer",
-            "power_off": "Extinction",
-            "power_cycle": "Redémarrer",
-            "power_reset": "Réinitialisation d'alimentation",
-            "soft_shutdown": "Arrêt (logiciel)"
+      },
+      "reauth_confirm": {
+        "title": "Réauthentifier le serveur IPMI",
+        "description": "Échec d'authentification pour {host}. Saisissez de nouveaux identifiants.",
+        "data": {
+          "username": "Nom d'utilisateur",
+          "password": "Mot de passe"
         }
+      }
     }
+  },
+  "entity": {
+    "switch": {
+      "chassis": {
+        "name": "Allumer / Arrêt (logiciel)"
+      }
+    },
+    "binary_sensor": {
+      "power": {
+        "name": "Alimentation"
+      }
+    },
+    "button": {
+      "power_on": {
+        "name": "Allumer"
+      },
+      "power_off": {
+        "name": "Éteindre"
+      },
+      "power_cycle": {
+        "name": "Redémarrer"
+      },
+      "power_reset": {
+        "name": "Réinitialisation d'alimentation"
+      },
+      "soft_shutdown": {
+        "name": "Arrêt (logiciel)"
+      }
+    },
+    "sensor": {
+      "connection_backend": {
+        "name": "Backend de connexion"
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Options IPMI",
+        "description": "Les filtres s'appliquent uniquement aux nouveaux capteurs découverts. Les entités existantes restent inchangées jusqu'au rechargement de l'entrée après activation d'un type.",
+        "data": {
+          "scan_interval": "Intervalle de balayage en secondes",
+          "sensor_types": "Types de capteurs à découvrir"
+        },
+        "data_description": {
+          "sensor_types": "Seuls les types sélectionnés sont créés pour les nouveaux capteurs. Par défaut, comportement précédent (tous les types)."
+        }
+      }
+    }
+  },
+  "device_automation": {
+    "action_type": {
+      "power_on": "Allumer",
+      "power_off": "Extinction",
+      "power_cycle": "Redémarrer",
+      "power_reset": "Réinitialisation d'alimentation",
+      "soft_shutdown": "Arrêt (logiciel)"
+    }
+  }
 }

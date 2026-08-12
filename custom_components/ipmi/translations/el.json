@@ -1,78 +1,172 @@
 {
-    "config": {
-        "abort": {
-            "already_configured": "Η συσκευή είναι ήδη ρυθμισμένη"
+  "config": {
+    "abort": {
+      "already_configured": "Η συσκευή είναι ήδη ρυθμισμένη",
+      "reconfigure_successful": "Η επαναδιαμόρφωση ολοκληρώθηκε",
+      "reauth_successful": "Επιτυχής επαναπιστοποίηση"
+    },
+    "error": {
+      "cannot_connect": "Αποτυχία σύνδεσης",
+      "unknown": "Μη αναμενόμενο σφάλμα"
+    },
+    "step": {
+      "user": {
+        "title": "Σύνδεση στον IPMI διακομιστή",
+        "description": "Εισαγάγετε τα στοιχεία σύνδεσης BMC. Αφήστε τις προχωρημένες επιλογές απενεργοποιημένες εκτός αν χρειάζεστε ρυθμίσεις addon, κλειδιού Kg ή δικαιωμάτων.",
+        "data": {
+          "alias": "Ψευδώνυμο",
+          "host": "Υπολογιστής",
+          "password": "Κωδικός",
+          "port": "Θύρα",
+          "username": "Όνομα χρήστη",
+          "advanced": "Ρύθμιση προχωρημένων επιλογών"
         },
-        "error": {
-            "cannot_connect": "Αποτυχία σύνδεσης",
-            "unknown": "Μη αναμενόμενο σφάλμα"
+        "data_description": {
+          "host": "Όνομα υπολογιστή ή διεύθυνση IP του BMC",
+          "port": "Θύρα IPMI / RMCP (συνήθως 623)",
+          "advanced": "URL addon, διεπαφή, κλειδί Kg, επίπεδο προνομίων και ρυθμίσεις αθροίσματος ελέγχου FRU"
+        }
+      },
+      "advanced": {
+        "title": "Προχωρημένες ρυθμίσεις IPMI",
+        "description": "Οι προεπιλογές επαρκούν για τα περισσότερα setups. Χρησιμοποιήστε host/port του addon όταν είναι διαθέσιμο το ipmi-server addon ή το standalone container. Τα φίλτρα αισθητήρων ισχύουν για νέες ανακαλύψεις.",
+        "data": {
+          "kg_key": "Κλειδί κρυπτογράφησης Kg (hex, έως 40 χαρακτήρες)",
+          "privilege_level": "Επίπεδο προνομίων",
+          "ipmi_server_host": "Υπολογιστής ipmi-server",
+          "addon_port": "Θύρα ipmi-server",
+          "addon_interface": "Διεπαφή ipmitool",
+          "addon_extra_params": "Επιπλέον παράμετροι ipmitool",
+          "ignore_checksum_errors": "Αγνόηση σφαλμάτων αθροίσματος ελέγχου FRU",
+          "sensor_types": "Τύποι αισθητήρων προς ανακάλυψη"
         },
-        "step": {
-            "user": {
-                "data": {
-                    "alias": "Ψευδώνυμο",
-                    "host": "Υπολογιστής",
-                    "password": "Κωδικός",
-                    "port": "Θύρα",
-                    "username": "Όνομα χρήστη",
-                    "kg_key": "Κλειδί κρυπτογράφησης Kg (hex, έως 40 χαρακτήρες)",
-                    "privilege_level": "Επίπεδο προνομίων",
-                    "ipmi_server_host": "Υπολογιστής με το ipmi-server (Όταν χρησιμοποιείται ipmi-server)",
-                    "addon_port": "Θύρα πρόσθετου (Όταν χρησιμοποείται το πρόσθετο ipmi-server)",
-                    "addon_interface": "Διεπαφή του πρόσθετου για το ipmitool",
-                    "addon_extra_params": "Πρόσθετες παράμετροι του πρόσθετου για το ipmitool (cypher ίσως;)",
-                    "ignore_checksum_errors": "Αγνόηση σφαλμάτων αθροίσματος ελέγχου FRU"
-                },
-                "data_description": {
-                    "kg_key": "Προαιρετικό. Αυτή η λειτουργία απαιτεί το backend του πρόσθετου ipmi-server και δεν υποστηρίζεται από τη βιβλιοθήκη python-ipmi."
-                },
-                "title": "Σύνδεση στον IPMI διακομιστή"
-            }
+        "data_description": {
+          "kg_key": "Προαιρετικό. Απαιτεί το addon ipmi-server· δεν υποστηρίζεται από το python-ipmi fallback.",
+          "ipmi_server_host": "Στο Home Assistant OS χρησιμοποιήστε το hostname του addon, όχι localhost.",
+          "addon_interface": "Συνήθως lanplus. Το auto αφήνει το ipmitool να αποφασίσει.",
+          "addon_extra_params": "Προαιρετικά ορίσματα ipmitool (π.χ. cipher suite).",
+          "sensor_types": "Μόνο οι επιλεγμένοι τύποι δημιουργούνται για νέους αισθητήρες. Η προεπιλογή αντιστοιχεί στην προηγούμενη συμπεριφορά (όλοι οι τύποι)."
         }
-    },
-    "entity": {
-        "switch": {
-            "chassis": {
-                "name": "Απενεργοποίηση/Μη βίαιη απενεργοποίηση"
-            }
+      },
+      "reconfigure": {
+        "title": "Επαναδιαμόρφωση IPMI διακομιστή",
+        "description": "Ενημερώστε τα στοιχεία σύνδεσης BMC για αυτή την εγγραφή.",
+        "data": {
+          "alias": "Ψευδώνυμο",
+          "host": "Υπολογιστής",
+          "password": "Κωδικός",
+          "port": "Θύρα",
+          "username": "Όνομα χρήστη",
+          "advanced": "Ρύθμιση προχωρημένων επιλογών"
         }
-    },
-    "options": {
-        "step": {
-            "init": {
-                "data": {
-                    "scan_interval": "Μεσοδιάστημα Σάρωσης (δευτερόλεπτα)"
-                }
-            }
+      },
+      "reconfigure_advanced": {
+        "title": "Προχωρημένες ρυθμίσεις IPMI",
+        "description": "Οι προεπιλογές επαρκούν για τα περισσότερα setups. Χρησιμοποιήστε host/port του addon όταν είναι διαθέσιμο το ipmi-server addon ή το standalone container. Τα φίλτρα αισθητήρων ισχύουν για νέες ανακαλύψεις.",
+        "data": {
+          "kg_key": "Κλειδί κρυπτογράφησης Kg (hex, έως 40 χαρακτήρες)",
+          "privilege_level": "Επίπεδο προνομίων",
+          "ipmi_server_host": "Υπολογιστής ipmi-server",
+          "addon_port": "Θύρα ipmi-server",
+          "addon_interface": "Διεπαφή ipmitool",
+          "addon_extra_params": "Επιπλέον παράμετροι ipmitool",
+          "ignore_checksum_errors": "Αγνόηση σφαλμάτων αθροίσματος ελέγχου FRU",
+          "sensor_types": "Τύποι αισθητήρων προς ανακάλυψη"
+        },
+        "data_description": {
+          "kg_key": "Προαιρετικό. Απαιτεί το addon ipmi-server· δεν υποστηρίζεται από το python-ipmi fallback.",
+          "ipmi_server_host": "Στο Home Assistant OS χρησιμοποιήστε το hostname του addon, όχι localhost.",
+          "addon_interface": "Συνήθως lanplus. Το auto αφήνει το ipmitool να αποφασίσει.",
+          "addon_extra_params": "Προαιρετικά ορίσματα ipmitool (π.χ. cipher suite).",
+          "sensor_types": "Μόνο οι επιλεγμένοι τύποι δημιουργούνται για νέους αισθητήρες. Η προεπιλογή αντιστοιχεί στην προηγούμενη συμπεριφορά (όλοι οι τύποι)."
         }
-    },
-    "device_automation": {
-        "action_type": {
-            "power_on": "Ενεργοποίηση",
-            "power_off": "Απενεργοποίηση",
-            "power_cycle": "Επανεκκίνηση",
-            "power_reset": "Power reset",
-            "soft_shutdown": "Μη βίαιη απενεργοποίηση"
+      },
+      "reauth_confirm": {
+        "title": "Επαναπιστοποίηση IPMI διακομιστή",
+        "description": "Αποτυχία πιστοποίησης για {host}. Εισαγάγετε ενημερωμένα διαπιστευτήρια.",
+        "data": {
+          "username": "Όνομα χρήστη",
+          "password": "Κωδικός"
         }
-    },
-    "services": {
-        "send_command": {
-            "name": "Αποστολή προσαρμοσμένης εντολής",
-            "description": "Στέλνει μια προσαρμοσμένη εντολή στον IPMI διακομιστή",
-            "fields": {
-                "server": {
-                    "name": "Διακομιστής",
-                    "description": "Ο διακομιστής στον οποίο θα σταλεί η εντολή"
-                },
-                "command": {
-                    "name": "Εντολή",
-                    "description": "Η εντολή που θα σταλεί"
-                },
-                "ignore_errors": {
-                    "name": "Αγνόηση σφαλμάτων",
-                    "description": "Αγνόηση σφαλμάτων κατά την αποστολή της εντολής. Μερικές raw εντολές μπορεί να επιστρέφουν σφάλμα, αλλά παρόλα αυτά να είναι επιτυχείς. Αυτό χρησιμοποιήστε το μόνο αν γνωρίζετε απόλυτα τι κάνετε."
-                }
-            }
-        }
+      }
     }
+  },
+  "entity": {
+    "switch": {
+      "chassis": {
+        "name": "Απενεργοποίηση/Μη βίαιη απενεργοποίηση"
+      }
+    },
+    "binary_sensor": {
+      "power": {
+        "name": "Ισχύς"
+      }
+    },
+    "button": {
+      "power_on": {
+        "name": "Ενεργοποίηση"
+      },
+      "power_off": {
+        "name": "Απενεργοποίηση"
+      },
+      "power_cycle": {
+        "name": "Επανεκκίνηση"
+      },
+      "power_reset": {
+        "name": "Power reset"
+      },
+      "soft_shutdown": {
+        "name": "Μη βίαιη απενεργοποίηση"
+      }
+    },
+    "sensor": {
+      "connection_backend": {
+        "name": "Backend σύνδεσης"
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Επιλογές IPMI",
+        "description": "Τα φίλτρα ισχύουν μόνο για νέους αισθητήρες. Οι υπάρχουσες οντότητες παραμένουν ως έχουν μέχρι την επαναφόρτωση της καταχώρησης μετά την ενεργοποίηση ενός τύπου.",
+        "data": {
+          "scan_interval": "Μεσοδιάστημα Σάρωσης (δευτερόλεπτα)",
+          "sensor_types": "Τύποι αισθητήρων προς ανακάλυψη"
+        },
+        "data_description": {
+          "sensor_types": "Μόνο οι επιλεγμένοι τύποι δημιουργούνται για νέους αισθητήρες. Η προεπιλογή αντιστοιχεί στην προηγούμενη συμπεριφορά (όλοι οι τύποι)."
+        }
+      }
+    }
+  },
+  "device_automation": {
+    "action_type": {
+      "power_on": "Ενεργοποίηση",
+      "power_off": "Απενεργοποίηση",
+      "power_cycle": "Επανεκκίνηση",
+      "power_reset": "Power reset",
+      "soft_shutdown": "Μη βίαιη απενεργοποίηση"
+    }
+  },
+  "services": {
+    "send_command": {
+      "name": "Αποστολή προσαρμοσμένης εντολής",
+      "description": "Στέλνει μια προσαρμοσμένη εντολή στον IPMI διακομιστή",
+      "fields": {
+        "server": {
+          "name": "Διακομιστής",
+          "description": "Ο διακομιστής στον οποίο θα σταλεί η εντολή"
+        },
+        "command": {
+          "name": "Εντολή",
+          "description": "Η εντολή που θα σταλεί"
+        },
+        "ignore_errors": {
+          "name": "Αγνόηση σφαλμάτων",
+          "description": "Αγνόηση σφαλμάτων κατά την αποστολή της εντολής. Μερικές raw εντολές μπορεί να επιστρέφουν σφάλμα, αλλά παρόλα αυτά να είναι επιτυχείς. Αυτό χρησιμοποιήστε το μόνο αν γνωρίζετε απόλυτα τι κάνετε."
+        }
+      }
+    }
+  }
 }

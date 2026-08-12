@@ -1,32 +1,11 @@
-"""
-The "ipmi" custom component.
-
-This component implements the bare minimum that a component should implement.
-
-Configuration:
-
-To use the ipmi component you will need to add the following to your
-configuration.yaml file.
-
-ipmi:
-"""
+"""The IPMI custom component."""
 
 from __future__ import annotations
 
-import async_timeout
-import requests
-from dataclasses import dataclass
+import asyncio
 from datetime import timedelta
 import logging
-from typing import cast
-import pyipmi
-import pyipmi.interfaces
-from pyipmi.errors import IpmiConnectionError
-import pyipmi.sensor
-import re
-from homeassistant.helpers.typing import ConfigType
 
-# The domain of your component. Should be equal to the name of your component.
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     CONF_ALIAS,
@@ -37,70 +16,82 @@ from homeassistant.const import (
     CONF_SCAN_INTERVAL,
     CONF_USERNAME,
 )
-from homeassistant.core import HomeAssistant, SupportsResponse, ServiceResponse
-from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers import (
-    config_validation as cv,
-    device_registry as dr,
-    entity_platform,
-)
+from homeassistant.core import HomeAssistant, ServiceCall, ServiceResponse, SupportsResponse
+from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers.typing import ConfigType
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
-from homeassistant.helpers.dispatcher import (
-    async_dispatcher_connect,
-    async_dispatcher_send,
-)
 
 from .const import (
-    CONF_IGNORE_CHECKSUM_ERRORS,
-    COORDINATOR,
-    DEFAULT_SCAN_INTERVAL,
-    DEFAULT_TIMEOUT,
-    DEFAULT_INTERFACE_TYPE,
-    CONF_ADDON_PORT,
-    CONF_IPMI_SERVER_HOST,
     CONF_ADDON_INTERFACE,
     CONF_ADDON_PARAMS,
+    CONF_ADDON_PORT,
+    CONF_IGNORE_CHECKSUM_ERRORS,
+    CONF_IPMI_SERVER_HOST,
     CONF_KG_KEY,
-    DEFAULT_KG_KEY,
     CONF_PRIVILEGE_LEVEL,
+    CONF_SENSOR_TYPES,
+    COORDINATOR,
+    DEFAULT_KG_KEY,
     DEFAULT_PRIVILEGE_LEVEL,
+    DEFAULT_SCAN_INTERVAL,
+    DEFAULT_SENSOR_TYPES,
+    DEFAULT_TIMEOUT,
+    DISPATCHERS,
     DOMAIN,
-    PLATFORMS,
+    INTEGRATION_SUPPORTED_COMMANDS,
     IPMI_DATA,
     IPMI_UNIQUE_ID,
-    IPMI_NEW_SENSOR_SIGNAL,
-    IPMI_UPDATE_SENSOR_SIGNAL,
-    USER_AVAILABLE_COMMANDS,
-    INTEGRATION_SUPPORTED_COMMANDS,
+    PLATFORMS,
     SERVERS,
-    DISPATCHERS,
-    IPMI_DEV_INFO_TO_DEV_INFO,
     SERVICE_SEND_COMMAND,
+    USER_AVAILABLE_COMMANDS,
 )
-
 from .helpers import IpmiData, get_ipmi_data, get_ipmi_server
 from .server import IpmiDeviceInfo, IpmiServer
-
-import voluptuous as vol
+from .util import as_str_list, format_entry_unique_id
 
 _LOGGER = logging.getLogger(__name__)
 
 
-def setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    """Set up the IPMI component."""
-    hass_data = IpmiData(servers={}, dispatchers={})
-    hass.data.setdefault(DOMAIN, hass_data)
+def _ensure_entry_unique_id(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Keep config-entry unique_id aligned with alias (entity IDs unchanged)."""
+    alias = entry.data.get(CONF_ALIAS)
+    if not alias:
+        return
 
-    def handle_send_command(call) -> ServiceResponse:
+    unique_id = format_entry_unique_id(alias)
+    if entry.unique_id == unique_id:
+        return
+
+    for other in hass.config_entries.async_entries(DOMAIN):
+        if other.entry_id != entry.entry_id and other.unique_id == unique_id:
+            _LOGGER.warning(
+                "Skipping unique_id %s for entry %s; already used by %s",
+                unique_id,
+                entry.entry_id,
+                other.entry_id,
+            )
+            return
+
+    hass.config_entries.async_update_entry(entry, unique_id=unique_id)
+
+
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+    """Set up the IPMI component."""
+    hass.data.setdefault(DOMAIN, IpmiData(servers={}, dispatchers={}))
+
+    async def handle_send_command(call: ServiceCall) -> ServiceResponse:
         """Handle the service call."""
         server = get_ipmi_server(hass, call.data.get("server"))
-        message = server[IPMI_DATA].send_command(
-            call.data.get("command"), call.data.get("ignore_errors", False)
+        message = await hass.async_add_executor_job(
+            server[IPMI_DATA].send_command,
+            call.data.get("command"),
+            call.data.get("ignore_errors", False),
         )
 
         return {"message": message}
 
-    hass.services.register(
+    hass.services.async_register(
         DOMAIN,
         SERVICE_SEND_COMMAND,
         handle_send_command,
@@ -112,15 +103,33 @@ def setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up IPMI from a config entry."""
+    hass.data.setdefault(DOMAIN, IpmiData(servers={}, dispatchers={}))
+
+    _ensure_entry_unique_id(hass, entry)
 
     # strip out the stale options CONF_RESOURCES,
     # maintain the entry in data in case of version rollback
-    if CONF_RESOURCES in entry.options:
-        new_data = {**entry.data, CONF_RESOURCES: entry.options[CONF_RESOURCES]}
-        new_options = {k: v for k, v in entry.options.items() if k != CONF_RESOURCES}
-        hass.config_entries.async_update_entry(
-            entry, data=new_data, options=new_options
+    new_options = dict(entry.options)
+    update_kwargs: dict = {}
+    if CONF_RESOURCES in new_options:
+        update_kwargs["data"] = {
+            **entry.data,
+            CONF_RESOURCES: new_options.pop(CONF_RESOURCES),
+        }
+
+    # Additive Phase 3 defaults: discover all sensor types.
+    # Drop removed diagnostic_sensor_types option from older builds.
+    new_options.pop("diagnostic_sensor_types", None)
+    if CONF_SENSOR_TYPES not in new_options:
+        new_options[CONF_SENSOR_TYPES] = list(DEFAULT_SENSOR_TYPES)
+    else:
+        new_options[CONF_SENSOR_TYPES] = as_str_list(
+            new_options[CONF_SENSOR_TYPES], DEFAULT_SENSOR_TYPES
         )
+
+    if update_kwargs or new_options != dict(entry.options):
+        update_kwargs["options"] = new_options
+        hass.config_entries.async_update_entry(entry, **update_kwargs)
 
     config = entry.data
 
@@ -161,8 +170,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     _LOGGER.debug("IPMI Sensors Available: %s", deviceInfo)
 
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
-    # unique_id = alias + _unique_id_from_status(deviceInfo)
-    # if unique_id is None:
     server_id = entry.entry_id
 
     hass_data = get_ipmi_data(hass)
@@ -193,7 +200,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
         hass_data = get_ipmi_data(hass)
-        hass_data[SERVERS].pop(entry.entry_id)
+        for unsub in hass_data[DISPATCHERS].pop(entry.entry_id, []):
+            unsub()
+        hass_data[SERVERS].pop(entry.entry_id, None)
     return unload_ok
 
 
@@ -234,6 +243,29 @@ async def async_migrate_entry(hass, config_entry: ConfigEntry):
             config_entry, data=new, minor_version=2, version=2
         )
 
+    # Migrate to version 2.3 - config entry unique_id (later superseded by alias)
+    if config_entry.version == 2 and config_entry.minor_version < 3:
+        hass.config_entries.async_update_entry(
+            config_entry, minor_version=3, version=2
+        )
+
+    # Migrate to version 2.4 - config entry unique_id is the alias (not host:port)
+    if config_entry.version == 2 and config_entry.minor_version < 4:
+        unique_id = config_entry.unique_id
+        alias = config_entry.data.get(CONF_ALIAS)
+        if alias:
+            candidate = format_entry_unique_id(alias)
+            conflict = any(
+                other.entry_id != config_entry.entry_id
+                and other.unique_id == candidate
+                for other in hass.config_entries.async_entries(DOMAIN)
+            )
+            if not conflict:
+                unique_id = candidate
+        hass.config_entries.async_update_entry(
+            config_entry, unique_id=unique_id, minor_version=4, version=2
+        )
+
     _LOGGER.debug(
         "Migration to version %s.%s successful",
         config_entry.version,
@@ -241,25 +273,6 @@ async def async_migrate_entry(hass, config_entry: ConfigEntry):
     )
 
     return True
-
-
-def _unique_id_from_status(device_info: IpmiDeviceInfo) -> str | None:
-    """Find the best unique id value from the status."""
-    alias = device_info.alias
-    # We must have an alias for this to be unique
-    if not alias:
-        return None
-
-    product_id = device_info.device["product_id"]
-
-    unique_id_group = []
-    if product_id:
-        product_id = re.sub("(.*?)", "", product_id)
-        unique_id_group.append(product_id)
-    if alias:
-        unique_id_group.append(alias)
-
-    return "_".join(unique_id_group)
 
 
 class IpmiCoordinator(DataUpdateCoordinator):
@@ -277,9 +290,15 @@ class IpmiCoordinator(DataUpdateCoordinator):
 
     async def _async_update_data(self) -> IpmiDeviceInfo:
         """Fetch data from IPMI server."""
-        async with async_timeout.timeout(DEFAULT_TIMEOUT):
+        async with asyncio.timeout(DEFAULT_TIMEOUT):
             await self.hass.async_add_executor_job(self.ipmiData.update)
             if not self.ipmiData.device_info:
+                if self.ipmiData.auth_failed and self.ipmiData._entry_id:
+                    entry = self.hass.config_entries.async_get_entry(
+                        self.ipmiData._entry_id
+                    )
+                    if entry is not None:
+                        entry.async_start_reauth(self.hass)
                 raise UpdateFailed("Error fetching IPMI state")
 
             return self.ipmiData.device_info

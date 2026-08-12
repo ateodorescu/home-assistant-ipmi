@@ -1,78 +1,172 @@
 {
-    "config": {
-        "abort": {
-            "already_configured": "Gerät ist bereits konfiguriert"
+  "config": {
+    "abort": {
+      "already_configured": "Gerät ist bereits konfiguriert",
+      "reconfigure_successful": "Erfolgreich neu konfiguriert",
+      "reauth_successful": "Erfolgreich erneut authentifiziert"
+    },
+    "error": {
+      "cannot_connect": "Verbindung fehlgeschlagen",
+      "unknown": "Unerwarteter Fehler"
+    },
+    "step": {
+      "user": {
+        "title": "Mit dem IPMI Server verbinden",
+        "description": "BMC-Verbindungsdaten eingeben. Erweiterte Optionen nur aktivieren, wenn Addon-, Kg-Schlüssel- oder Berechtigungseinstellungen nötig sind.",
+        "data": {
+          "alias": "Alias",
+          "host": "Host",
+          "password": "Passwort",
+          "port": "Port",
+          "username": "Benutzername",
+          "advanced": "Erweiterte Optionen konfigurieren"
         },
-        "error": {
-            "cannot_connect": "Verbindung fehlgeschlagen",
-            "unknown": "Unerwarteter Fehler"
+        "data_description": {
+          "host": "BMC-Hostname oder IP-Adresse",
+          "port": "IPMI-/RMCP-Port (üblicherweise 623)",
+          "advanced": "Addon-URL, Schnittstelle, Kg-Schlüssel, Berechtigungsstufe und FRU-Prüfsummeneinstellungen"
+        }
+      },
+      "advanced": {
+        "title": "Erweiterte IPMI-Einstellungen",
+        "description": "Die Standardwerte passen für die meisten Setups. Addon-Host/Port verwenden, wenn das ipmi-server-Addon oder der Standalone-Container verfügbar ist. Sensorfilter gelten für neu entdeckte Sensoren.",
+        "data": {
+          "kg_key": "Kg-Verschlüsselungsschlüssel (Hex, max. 40 Zeichen)",
+          "privilege_level": "Berechtigungsstufe",
+          "ipmi_server_host": "ipmi-server Host",
+          "addon_port": "ipmi-server Port",
+          "addon_interface": "ipmitool-Schnittstelle",
+          "addon_extra_params": "Zusätzliche ipmitool-Parameter",
+          "ignore_checksum_errors": "Ignoriere FRU-Prüfsummenfehler",
+          "sensor_types": "Zu entdeckende Sensortypen"
         },
-        "step": {
-            "user": {
-                "data": {
-                    "alias": "Alias",
-                    "host": "Host",
-                    "password": "Passwort",
-                    "port": "Port",
-                    "username": "Benutzername",
-                    "kg_key": "Kg-Verschlüsselungsschlüssel (Hex, max. 40 Zeichen)",
-                    "privilege_level": "Berechtigungsstufe",
-                    "ipmi_server_host": "ipmi-server Host (wenn ipmi-server verwendet wird)",
-                    "addon_port": "Addon-Port (wenn ipmi-server Addon verwendet wird)",
-                    "addon_interface": "Addon-Schnittstellentyp für ipmitool",
-                    "addon_extra_params": "Zusätzliche Addon-Parameter für ipmitool (vielleicht Cypher?)",
-                    "ignore_checksum_errors": "Ignoriere FRU-Prüfsummenfehler"
-                },
-                "data_description": {
-                    "kg_key": "Optional. Diese Funktion erfordert das ipmi-server-Addon-Backend und wird von der python-ipmi-Bibliothek nicht unterstützt."
-                },
-                "title": "Mit dem IPMI Server verbinden"
-            }
+        "data_description": {
+          "kg_key": "Optional. Erfordert das ipmi-server-Addon; wird vom python-ipmi-Fallback nicht unterstützt.",
+          "ipmi_server_host": "Unter Home Assistant OS den Addon-Hostnamen verwenden, nicht localhost.",
+          "addon_interface": "Üblicherweise lanplus. auto lässt ipmitool entscheiden.",
+          "addon_extra_params": "Optionale ipmitool-Argumente (z. B. Cipher-Suite).",
+          "sensor_types": "Nur ausgewählte Typen werden für neu entdeckte Sensoren angelegt. Standard entspricht dem bisherigen Verhalten (alle Typen)."
         }
-    },
-    "entity": {
-        "switch": {
-            "chassis": {
-                "name": "Einschalten/Soft-Abschaltung"
-            }
+      },
+      "reconfigure": {
+        "title": "IPMI-Server neu konfigurieren",
+        "description": "BMC-Verbindungsdaten für diesen Eintrag aktualisieren.",
+        "data": {
+          "alias": "Alias",
+          "host": "Host",
+          "password": "Passwort",
+          "port": "Port",
+          "username": "Benutzername",
+          "advanced": "Erweiterte Optionen konfigurieren"
         }
-    },
-    "options": {
-        "step": {
-            "init": {
-                "data": {
-                    "scan_interval": "Scan-Intervall (Sekunden)"
-                }
-            }
+      },
+      "reconfigure_advanced": {
+        "title": "Erweiterte IPMI-Einstellungen",
+        "description": "Die Standardwerte passen für die meisten Setups. Addon-Host/Port verwenden, wenn das ipmi-server-Addon oder der Standalone-Container verfügbar ist. Sensorfilter gelten für neu entdeckte Sensoren.",
+        "data": {
+          "kg_key": "Kg-Verschlüsselungsschlüssel (Hex, max. 40 Zeichen)",
+          "privilege_level": "Berechtigungsstufe",
+          "ipmi_server_host": "ipmi-server Host",
+          "addon_port": "ipmi-server Port",
+          "addon_interface": "ipmitool-Schnittstelle",
+          "addon_extra_params": "Zusätzliche ipmitool-Parameter",
+          "ignore_checksum_errors": "Ignoriere FRU-Prüfsummenfehler",
+          "sensor_types": "Zu entdeckende Sensortypen"
+        },
+        "data_description": {
+          "kg_key": "Optional. Erfordert das ipmi-server-Addon; wird vom python-ipmi-Fallback nicht unterstützt.",
+          "ipmi_server_host": "Unter Home Assistant OS den Addon-Hostnamen verwenden, nicht localhost.",
+          "addon_interface": "Üblicherweise lanplus. auto lässt ipmitool entscheiden.",
+          "addon_extra_params": "Optionale ipmitool-Argumente (z. B. Cipher-Suite).",
+          "sensor_types": "Nur ausgewählte Typen werden für neu entdeckte Sensoren angelegt. Standard entspricht dem bisherigen Verhalten (alle Typen)."
         }
-    },
-    "device_automation": {
-        "action_type": {
-            "power_on": "Einschalten",
-            "power_off": "Ausschalten",
-            "power_cycle": "Neustarten",
-            "power_reset": "Zurücksetzen",
-            "soft_shutdown": "Soft-Abschaltung"
+      },
+      "reauth_confirm": {
+        "title": "IPMI-Server erneut authentifizieren",
+        "description": "Authentifizierung für {host} fehlgeschlagen. Neue Zugangsdaten eingeben.",
+        "data": {
+          "username": "Benutzername",
+          "password": "Passwort"
         }
-    },
-    "services": {
-        "send_command": {
-            "name": "Sende benutzerdefinierten Befehl",
-            "description": "Sendet einen benutzerdefinierten Befehl an den IPMI Server",
-            "fields": {
-                "server": {
-                    "name": "Server",
-                    "description": "Der Server, an den der Befehl gesendet wird"
-                },
-                "command": {
-                    "name": "Befehl",
-                    "description": "Der Befehl, der gesendet werden soll"
-                },
-                "ignore_errors": {
-                    "name": "Fehler ignorieren",
-                    "description": "Ignoriere Fehler beim Senden des Befehls. Einige Befehle können Fehler zurückgeben, aber trotzdem erfolgreich sein. Verwenden Sie dies nur, wenn Sie wissen, was Sie tun."
-                }
-            }
-        }
+      }
     }
+  },
+  "entity": {
+    "switch": {
+      "chassis": {
+        "name": "Einschalten/Soft-Abschaltung"
+      }
+    },
+    "binary_sensor": {
+      "power": {
+        "name": "Strom"
+      }
+    },
+    "button": {
+      "power_on": {
+        "name": "Einschalten"
+      },
+      "power_off": {
+        "name": "Ausschalten"
+      },
+      "power_cycle": {
+        "name": "Neustarten"
+      },
+      "power_reset": {
+        "name": "Zurücksetzen"
+      },
+      "soft_shutdown": {
+        "name": "Soft-Abschaltung"
+      }
+    },
+    "sensor": {
+      "connection_backend": {
+        "name": "Verbindungs-Backend"
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "IPMI-Optionen",
+        "description": "Filter gelten nur für neu entdeckte Sensoren. Bestehende Entitäten bleiben unverändert, bis der Eintrag nach Aktivieren eines Typs neu geladen wird.",
+        "data": {
+          "scan_interval": "Scan-Intervall (Sekunden)",
+          "sensor_types": "Zu entdeckende Sensortypen"
+        },
+        "data_description": {
+          "sensor_types": "Nur ausgewählte Typen werden für neu entdeckte Sensoren angelegt. Standard entspricht dem bisherigen Verhalten (alle Typen)."
+        }
+      }
+    }
+  },
+  "device_automation": {
+    "action_type": {
+      "power_on": "Einschalten",
+      "power_off": "Ausschalten",
+      "power_cycle": "Neustarten",
+      "power_reset": "Zurücksetzen",
+      "soft_shutdown": "Soft-Abschaltung"
+    }
+  },
+  "services": {
+    "send_command": {
+      "name": "Sende benutzerdefinierten Befehl",
+      "description": "Sendet einen benutzerdefinierten Befehl an den IPMI Server",
+      "fields": {
+        "server": {
+          "name": "Server",
+          "description": "Der Server, an den der Befehl gesendet wird"
+        },
+        "command": {
+          "name": "Befehl",
+          "description": "Der Befehl, der gesendet werden soll"
+        },
+        "ignore_errors": {
+          "name": "Fehler ignorieren",
+          "description": "Ignoriere Fehler beim Senden des Befehls. Einige Befehle können Fehler zurückgeben, aber trotzdem erfolgreich sein. Verwenden Sie dies nur, wenn Sie wissen, was Sie tun."
+        }
+      }
+    }
+  }
 }

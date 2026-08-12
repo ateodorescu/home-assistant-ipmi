@@ -5,7 +5,6 @@ from __future__ import annotations
 from dataclasses import asdict
 import logging
 from typing import Final, cast
-from datetime import timedelta
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -18,6 +17,7 @@ from homeassistant.const import (
     STATE_UNKNOWN,
     STATE_OFF,
     STATE_ON,
+    EntityCategory,
     UnitOfElectricPotential,
     UnitOfTemperature,
     UnitOfPower,
@@ -28,30 +28,81 @@ from homeassistant.const import (
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
     DataUpdateCoordinator,
 )
 from homeassistant.helpers.dispatcher import (
     async_dispatcher_connect,
-    async_dispatcher_send,
 )
 
 from . import IpmiServer
 from .helpers import get_ipmi_data, get_ipmi_server
 from .const import (
+    CONF_SENSOR_TYPES,
     COORDINATOR,
+    DEFAULT_SENSOR_TYPES,
     DOMAIN,
+    KEY_CONNECTION_BACKEND,
     KEY_STATUS,
     IPMI_DATA,
     IPMI_UNIQUE_ID,
     IPMI_NEW_SENSOR_SIGNAL,
-    IPMI_UPDATE_SENSOR_SIGNAL,
     IPMI_DEV_INFO_TO_DEV_INFO,
     DISPATCHERS,
+    SENSOR_TYPE_CURRENT,
+    SENSOR_TYPE_FAN,
+    SENSOR_TYPE_POWER,
+    SENSOR_TYPE_TEMPERATURE,
+    SENSOR_TYPE_TIME,
+    SENSOR_TYPE_VOLTAGE,
 )
+from .util import as_str_list
 
 _LOGGER = logging.getLogger(__name__)
+
+# Specs for dynamically discovered SDR / addon sensors (key = sensor group).
+_DYNAMIC_SENSOR_SPECS: Final[dict[str, dict]] = {
+    SENSOR_TYPE_TEMPERATURE: {
+        "native_unit_of_measurement": UnitOfTemperature.CELSIUS,
+        "device_class": SensorDeviceClass.TEMPERATURE,
+        "state_class": SensorStateClass.MEASUREMENT,
+        "entity_registry_enabled_default": True,
+    },
+    SENSOR_TYPE_VOLTAGE: {
+        "native_unit_of_measurement": UnitOfElectricPotential.VOLT,
+        "device_class": SensorDeviceClass.VOLTAGE,
+        "state_class": SensorStateClass.MEASUREMENT,
+        "entity_registry_enabled_default": True,
+        "suggested_display_precision": 2,
+    },
+    SENSOR_TYPE_FAN: {
+        "icon": "mdi:fan",
+        "native_unit_of_measurement": REVOLUTIONS_PER_MINUTE,
+        "state_class": SensorStateClass.MEASUREMENT,
+        "entity_registry_enabled_default": True,
+    },
+    SENSOR_TYPE_POWER: {
+        "native_unit_of_measurement": UnitOfPower.WATT,
+        "device_class": SensorDeviceClass.POWER,
+        "state_class": SensorStateClass.MEASUREMENT,
+        "entity_registry_enabled_default": True,
+    },
+    SENSOR_TYPE_CURRENT: {
+        "native_unit_of_measurement": UnitOfElectricCurrent.AMPERE,
+        "device_class": SensorDeviceClass.CURRENT,
+        "state_class": SensorStateClass.MEASUREMENT,
+        "entity_registry_enabled_default": True,
+        "suggested_display_precision": 2,
+    },
+    SENSOR_TYPE_TIME: {
+        "native_unit_of_measurement": UnitOfTime.SECONDS,
+        "device_class": SensorDeviceClass.DURATION,
+        "state_class": SensorStateClass.MEASUREMENT,
+        "entity_registry_enabled_default": True,
+    },
+}
 
 
 def _get_ipmi_device_info(data: IpmiServer) -> DeviceInfo:
@@ -92,7 +143,19 @@ async def async_setup_entry(
                     ),
                     data,
                     unique_id,
-                )
+                ),
+                IpmiConnectionBackendSensor(
+                    coordinator,
+                    SensorEntityDescription(
+                        key=KEY_CONNECTION_BACKEND,
+                        translation_key=KEY_CONNECTION_BACKEND,
+                        icon="mdi:lan-connect",
+                        entity_category=EntityCategory.DIAGNOSTIC,
+                        entity_registry_enabled_default=True,
+                    ),
+                    data,
+                    unique_id,
+                ),
             ]
         )
 
@@ -101,7 +164,9 @@ async def async_setup_entry(
         @callback
         def async_new_sensors() -> None:
             """Set up IPMI sensors."""
-            create_entity_sensors(ipmiserver, unique_id, async_add_entities)
+            # Always read the live entry so options from config/create are current.
+            entry = hass.config_entries.async_get_entry(server_id) or config_entry
+            create_entity_sensors(ipmiserver, unique_id, async_add_entities, entry)
 
         get_ipmi_data(hass)[DISPATCHERS][server_id].append(
             async_dispatcher_connect(
@@ -119,153 +184,49 @@ def create_entity_sensors(
     ipmi_data: object,
     unique_id: str,
     async_add_entities: AddEntitiesCallback,
+    config_entry: ConfigEntry,
 ) -> None:
+    """Create entities for newly discovered sensors, respecting options filters."""
     coordinator = ipmi_data[COORDINATOR]
     data = ipmi_data[IPMI_DATA]
     status = coordinator.data
     entities = []
 
-    _LOGGER.debug("Let's add unknown sensors")
+    enabled_types = set(
+        as_str_list(
+            config_entry.options.get(CONF_SENSOR_TYPES),
+            DEFAULT_SENSOR_TYPES,
+        )
+    )
 
-    if status.sensors.get("temperature") is not None:
-        for id in status.sensors.get("temperature"):
-            if not data.is_known_sensor(id):
-                _LOGGER.debug("%s sensor will be added", id)
-                data.add_known_sensor(id)
+    _LOGGER.debug("Discovering sensors (enabled=%s)", enabled_types)
 
-                entities.append(
-                    IpmiSensor(
-                        coordinator,
-                        SensorEntityDescription(
-                            key=id,
-                            name=status.sensors["temperature"][id],
-                            native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-                            device_class=SensorDeviceClass.TEMPERATURE,
-                            state_class=SensorStateClass.MEASUREMENT,
-                            # entity_category=EntityCategory.DIAGNOSTIC,
-                            entity_registry_enabled_default=True,
-                        ),
-                        data,
-                        unique_id,
-                    )
+    for sensor_type, spec in _DYNAMIC_SENSOR_SPECS.items():
+        # Skip without marking known so enabling a type later (options reload)
+        # can still create entities.
+        if sensor_type not in enabled_types:
+            continue
+
+        sensors = status.sensors.get(sensor_type) or {}
+        for sensor_id, name in sensors.items():
+            if data.is_known_sensor(sensor_id):
+                continue
+
+            _LOGGER.debug("%s sensor will be added", sensor_id)
+            data.add_known_sensor(sensor_id)
+
+            entities.append(
+                IpmiSensor(
+                    coordinator,
+                    SensorEntityDescription(
+                        key=sensor_id,
+                        name=name,
+                        **dict(spec),
+                    ),
+                    data,
+                    unique_id,
                 )
-
-    if status.sensors.get("voltage") is not None:
-        for id in status.sensors.get("voltage"):
-            if not data.is_known_sensor(id):
-                _LOGGER.debug("%s sensor will be added", id)
-                data.add_known_sensor(id)
-
-                entities.append(
-                    IpmiSensor(
-                        coordinator,
-                        SensorEntityDescription(
-                            key=id,
-                            name=status.sensors["voltage"][id],
-                            native_unit_of_measurement=UnitOfElectricPotential.VOLT,
-                            device_class=SensorDeviceClass.VOLTAGE,
-                            state_class=SensorStateClass.MEASUREMENT,
-                            # entity_category=EntityCategory.DIAGNOSTIC,
-                            entity_registry_enabled_default=True,
-                            suggested_display_precision=2,
-                        ),
-                        data,
-                        unique_id,
-                    )
-                )
-
-    if status.sensors.get("fan") is not None:
-        for id in status.sensors.get("fan"):
-            if not data.is_known_sensor(id):
-                _LOGGER.debug("%s sensor will be added", id)
-                data.add_known_sensor(id)
-
-                entities.append(
-                    IpmiSensor(
-                        coordinator,
-                        SensorEntityDescription(
-                            key=id,
-                            name=status.sensors["fan"][id],
-                            icon="mdi:fan",
-                            native_unit_of_measurement=REVOLUTIONS_PER_MINUTE,
-                            state_class=SensorStateClass.MEASUREMENT,
-                            # entity_category=EntityCategory.DIAGNOSTIC,
-                            entity_registry_enabled_default=True,
-                        ),
-                        data,
-                        unique_id,
-                    )
-                )
-
-    if status.sensors.get("power") is not None:
-        for id in status.sensors.get("power"):
-            if not data.is_known_sensor(id):
-                _LOGGER.debug("%s sensor will be added", id)
-                data.add_known_sensor(id)
-
-                entities.append(
-                    IpmiSensor(
-                        coordinator,
-                        SensorEntityDescription(
-                            key=id,
-                            name=status.sensors["power"][id],
-                            native_unit_of_measurement=UnitOfPower.WATT,
-                            device_class=SensorDeviceClass.POWER,
-                            state_class=SensorStateClass.MEASUREMENT,
-                            # entity_category=EntityCategory.DIAGNOSTIC,
-                            entity_registry_enabled_default=True,
-                        ),
-                        data,
-                        unique_id,
-                    )
-                )
-
-    if status.sensors.get("current") is not None:
-        for id in status.sensors.get("current"):
-            if not data.is_known_sensor(id):
-                _LOGGER.debug("%s sensor will be added", id)
-                data.add_known_sensor(id)
-
-                entities.append(
-                    IpmiSensor(
-                        coordinator,
-                        SensorEntityDescription(
-                            key=id,
-                            name=status.sensors["current"][id],
-                            native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
-                            device_class=SensorDeviceClass.CURRENT,
-                            state_class=SensorStateClass.MEASUREMENT,
-                            # entity_category=EntityCategory.DIAGNOSTIC,
-                            entity_registry_enabled_default=True,
-                            suggested_display_precision=2,
-                        ),
-                        data,
-                        unique_id,
-                    )
-                )
-
-    if status.sensors.get("time") is not None:
-        for id in status.sensors.get("time"):
-            if not data.is_known_sensor(id):
-                _LOGGER.debug("%s sensor will be added", id)
-                data.add_known_sensor(id)
-
-                entities.append(
-                    IpmiSensor(
-                        coordinator,
-                        SensorEntityDescription(
-                            key=id,
-                            name=status.sensors["time"][id],
-                            native_unit_of_measurement=UnitOfTime.SECONDS,
-                            device_class=SensorDeviceClass.DURATION,
-                            state_class=SensorStateClass.MEASUREMENT,
-                            # entity_category=EntityCategory.DIAGNOSTIC,
-                            entity_registry_enabled_default=True,
-                        ),
-                        data,
-                        unique_id,
-                    )
-                )
+            )
 
     async_add_entities(entities, True)
 
@@ -323,7 +284,7 @@ class IpmiSensor(
                 return STATE_OFF
         else:
             if not status.states:
-                return self.available
+                return None
 
             state = status.states.get(self.entity_description.key, None)
 
@@ -331,3 +292,56 @@ class IpmiSensor(
                 return float(state)
             else:
                 return STATE_UNKNOWN
+
+
+class IpmiConnectionBackendSensor(
+    CoordinatorEntity[DataUpdateCoordinator[dict[str, str]]], SensorEntity
+):
+    """Diagnostic sensor showing whether addon or RMCP was used.
+
+    This is the only dynamic/status helper marked diagnostic; it is enabled by
+    default so the active backend is visible without extra setup.
+    """
+
+    _attr_has_entity_name = True
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_entity_registry_enabled_default = True
+
+    def __init__(
+        self,
+        coordinator: DataUpdateCoordinator[dict[str, str]],
+        sensor_description: SensorEntityDescription,
+        data: IpmiServer,
+        unique_id: str,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator)
+        self.entity_description = sensor_description
+        self.ipmi_data = data
+        self._attr_unique_id = f"{unique_id}_{data._alias}_{sensor_description.key}"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, unique_id)},
+            name=data.name.title(),
+        )
+        self._attr_device_info.update(_get_ipmi_device_info(data))
+
+    async def async_added_to_hass(self) -> None:
+        """Run when entity is added; re-enable if previously integration-disabled."""
+        await super().async_added_to_hass()
+        if (
+            self.registry_entry is not None
+            and self.registry_entry.disabled_by == er.RegistryEntryDisabler.INTEGRATION
+        ):
+            er.async_get(self.hass).async_update_entity(
+                self.entity_id, disabled_by=None
+            )
+
+    @property
+    def available(self) -> bool:
+        """Backend sensor stays available for diagnostics."""
+        return True
+
+    @property
+    def native_value(self) -> str:
+        """Return the last successful connection backend."""
+        return self.ipmi_data.last_backend

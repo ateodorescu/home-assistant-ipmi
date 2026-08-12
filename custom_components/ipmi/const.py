@@ -9,7 +9,7 @@ from homeassistant.const import (
 
 DOMAIN = "ipmi"
 
-PLATFORMS = [Platform.SENSOR, Platform.SWITCH]
+PLATFORMS = [Platform.SENSOR, Platform.SWITCH, Platform.BINARY_SENSOR, Platform.BUTTON]
 
 DEFAULT_NAME = "IPMI Server"
 DEFAULT_ALIAS = "server"
@@ -31,8 +31,15 @@ PRIVILEGE_LEVELS = ["ADMINISTRATOR", "OPERATOR", "USER"]
 DEFAULT_ADDON_PORT = 9595
 DEFAULT_INTERFACE_TYPE = "lanplus"
 DEFAULT_TIMEOUT = 60
+# Addon proxies a full BMC poll; keep aligned with the coordinator budget.
+DEFAULT_HTTP_TIMEOUT = 60
 
 KEY_STATUS = "status"
+KEY_CONNECTION_BACKEND = "connection_backend"
+
+BACKEND_ADDON = "addon"
+BACKEND_RMCP = "rmcp"
+BACKEND_NONE = "none"
 
 COORDINATOR = "coordinator"
 DEFAULT_SCAN_INTERVAL = 60
@@ -68,3 +75,25 @@ INTEGRATION_SUPPORTED_COMMANDS = {
 }
 
 SERVICE_SEND_COMMAND = "send_command"
+
+# Dynamic SDR / addon sensor groups
+SENSOR_TYPE_TEMPERATURE = "temperature"
+SENSOR_TYPE_VOLTAGE = "voltage"
+SENSOR_TYPE_FAN = "fan"
+SENSOR_TYPE_POWER = "power"
+SENSOR_TYPE_CURRENT = "current"
+SENSOR_TYPE_TIME = "time"
+
+SENSOR_TYPES = [
+    SENSOR_TYPE_TEMPERATURE,
+    SENSOR_TYPE_VOLTAGE,
+    SENSOR_TYPE_FAN,
+    SENSOR_TYPE_POWER,
+    SENSOR_TYPE_CURRENT,
+    SENSOR_TYPE_TIME,
+]
+
+CONF_SENSOR_TYPES = "sensor_types"
+# Missing options = today's behavior: discover all types.
+DEFAULT_SENSOR_TYPES = list(SENSOR_TYPES)
+

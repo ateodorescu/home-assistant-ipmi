@@ -11,7 +11,7 @@ from homeassistant.components.switch import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity import DeviceInfo, generate_entity_id
+from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
@@ -27,8 +27,6 @@ from .const import (
     IPMI_UNIQUE_ID,
     IPMI_DEV_INFO_TO_DEV_INFO
 )
-
-ENTITY_ID_FORMAT = DOMAIN + ".{}"
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -111,9 +109,9 @@ class IpmiSwitch(CoordinatorEntity[DataUpdateCoordinator[dict[str, str]]],Switch
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on relay."""
         await self.hass.async_add_executor_job(self.ipmi_data.power_on)
-        self.async_write_ha_state()
+        await self.coordinator.async_request_refresh()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn off relay."""
         await self.hass.async_add_executor_job(self.ipmi_data.soft_shutdown)
-        self.async_write_ha_state()
+        await self.coordinator.async_request_refresh()
