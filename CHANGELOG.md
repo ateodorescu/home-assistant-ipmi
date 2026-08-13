@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.22.0 — 2026-08-13
+
+### Added
+
+- Optional **energy sensors** (kWh, `total_increasing`) derived from discovered power readings for use in the Home Assistant Energy dashboard ([#80](https://github.com/ateodorescu/home-assistant-ipmi/issues/80)); enabled by default under **Configure → Create energy sensors from power readings**
+- **Power switch off delay** option ([#39](https://github.com/ateodorescu/home-assistant-ipmi/issues/39)): after soft shutdown, the power switch stays off for a configurable period (default 60 seconds) while the BMC may still report power on; set to 0 to disable; the State sensor is unchanged
+- **Minimal IPMI (power only)** option ([#81](https://github.com/ateodorescu/home-assistant-ipmi/issues/81)) for BMCs with a limited command set (e.g. Sipeed NanoKVM): skips FRU/SDR polling; power status and chassis controls only
+- Dynamic sensors expose **`ipmi_status`** (e.g. `ok`, `cr`) when provided by the ipmi-server addon; requires addon **2.5.4+** for failed/out-of-threshold readings such as **0 RPM | cr** ([#52](https://github.com/ateodorescu/home-assistant-ipmi/issues/52))
+
+### Fixed
+
+- Discover entities from the union of reported sensor metadata and readings so sensors with metadata but no numeric value still get created ([#52](https://github.com/ateodorescu/home-assistant-ipmi/issues/52))
+- Chassis power commands (switch, buttons, device actions) are serialized with the RMCP session lock so polling and control no longer race ([#70](https://github.com/ateodorescu/home-assistant-ipmi/issues/70))
+- Failed chassis commands raise visible errors instead of failing silently; successful commands log at info level
+- Power switch **off delay** applies only after a successful soft shutdown, so a failed command no longer blocks retries via `switch.turn_off`
+
+### Changed
+
+- **Automations / scripts:** prefer **buttons** or **device actions** for power control; the power switch follows Home Assistant switch semantics (`turn_off` is skipped when the switch already reads off). See README.
+
 ## 1.21.3 — 2026-08-12
 
 ### Changed

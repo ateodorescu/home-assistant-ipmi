@@ -66,6 +66,8 @@ Addon HTTP uses **GET** (query params; supported by current addons). POST is onl
 
 When changing connection or auth behavior, keep addon-first fallback as the **default** (`auto`) and preserve both paths unless the task explicitly drops one.
 
+Chassis commands (`power_on`, `soft_shutdown`, …) run through `_chassis_command`: addon first, RMCP fallback, raise `IpmiChassisCommandError` on failure. RMCP poll and chassis control share `_rmcp_lock`. Entities use `helpers.async_run_chassis_command` → `HomeAssistantError`. Prefer **buttons** over the power switch in automations (HA skips switch services when `is_on` already matches).
+
 ## Compatibility rules
 
 - **Never change** existing entity `unique_id` strings (`{entry_id}_{alias}_{key}` / switch form).
@@ -82,6 +84,15 @@ When changing connection or auth behavior, keep addon-first fallback as the **de
 - Bump `version` in `manifest.json` when shipping a release-worthy change.
 - Log with `_LOGGER = logging.getLogger(__name__)`. Prefer debug for expected fallbacks; avoid logging passwords or kg keys.
 - Match nearby style: `from __future__ import annotations`, existing naming (`IpmiServer`, `get_ipmi_server`), broad exception handling around remote IPMI (fragile hardware).
+
+## Releases
+
+When pushing a version tag or publishing a GitHub release (only when explicitly requested):
+
+1. Bump `version` in `manifest.json` and add or update the matching section in `CHANGELOG.md`.
+2. Tag the release commit with a **`v` prefix**: `vX.Y.Z`, not `X.Y.Z`. Tags must match the `v*` pattern in `.github/workflows/release.yml` so the HACS zip is built and attached.
+3. If creating a GitHub release, name it **`home-assistant-ipmi vX.Y.Z`** (repository name, space, tag).
+4. Put the **changelog text for that version** in the release description (copy from `CHANGELOG.md` for that version; do not rely on auto-generated release notes alone).
 
 ## Do / don't
 

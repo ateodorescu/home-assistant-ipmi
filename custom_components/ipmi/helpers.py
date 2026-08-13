@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import asdict
 from typing import TYPE_CHECKING, Any, TypedDict, cast
 
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import DeviceInfo
 
 from .const import DOMAIN, IPMI_DEV_INFO_TO_DEV_INFO, SERVERS
+from .util import IpmiChassisCommandError
 
 if TYPE_CHECKING:
     from .server import IpmiServer
@@ -49,3 +52,13 @@ def device_info_from_ipmi_server(data: IpmiServer, unique_id: str) -> DeviceInfo
             )
         )
     return info
+
+
+async def async_run_chassis_command(
+    hass: HomeAssistant, command: Callable[[], None]
+) -> None:
+    """Run a blocking chassis command in the executor and surface failures to HA."""
+    try:
+        await hass.async_add_executor_job(command)
+    except IpmiChassisCommandError as err:
+        raise HomeAssistantError(str(err)) from err

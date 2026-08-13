@@ -29,7 +29,7 @@ from .const import (
     IPMI_DATA,
     IPMI_UNIQUE_ID,
 )
-from .helpers import device_info_from_ipmi_server, get_ipmi_server
+from .helpers import async_run_chassis_command, device_info_from_ipmi_server, get_ipmi_server
 from .server import IpmiServer
 
 _LOGGER = logging.getLogger(__name__)
@@ -123,5 +123,5 @@ class IpmiButton(CoordinatorEntity[DataUpdateCoordinator], ButtonEntity):
         action: Callable[[], None] = getattr(
             self.ipmi_data, self.entity_description.press_action
         )
-        await self.hass.async_add_executor_job(action)
+        await async_run_chassis_command(self.hass, action)
         await self.coordinator.async_request_refresh()

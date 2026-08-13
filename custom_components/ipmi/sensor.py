@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 from typing import Final
 
 from homeassistant.components.sensor import (
+    RestoreSensor,
     SensorDeviceClass,
     SensorEntity,
     SensorEntityDescription,
@@ -21,8 +23,10 @@ from homeassistant.const import (
     UnitOfPower,
     UnitOfElectricCurrent,
     UnitOfTime,
+    UnitOfEnergy,
     REVOLUTIONS_PER_MINUTE,
 )
+from homeassistant.util import dt as dt_util
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers import entity_registry as er
@@ -36,9 +40,13 @@ from homeassistant.helpers.dispatcher import (
 
 from .helpers import device_info_from_ipmi_server, get_ipmi_data, get_ipmi_server
 from .const import (
+    CONF_CREATE_ENERGY_SENSORS,
     CONF_SENSOR_TYPES,
     COORDINATOR,
+    DEFAULT_CREATE_ENERGY_SENSORS,
     DEFAULT_SENSOR_TYPES,
+    DOMAIN,
+    ENERGY_SENSOR_KEY_SUFFIX,
     KEY_CONNECTION_BACKEND,
     KEY_STATUS,
     IPMI_DATA,
@@ -53,7 +61,12 @@ from .const import (
     SENSOR_TYPE_VOLTAGE,
 )
 from .server import IpmiServer
-from .util import as_str_list
+from .util import (
+    as_str_list,
+    energy_sensor_key,
+    energy_sensors_enabled,
+    integrate_power_left_riemann,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -181,8 +194,21 @@ def create_entity_sensors(
             DEFAULT_SENSOR_TYPES,
         )
     )
+    create_energy_sensors = energy_sensors_enabled(
+        enabled_types,
+        bool(
+            config_entry.options.get(
+                CONF_CREATE_ENERGY_SENSORS, DEFAULT_CREATE_ENERGY_SENSORS
+            )
+        ),
+        default_types=DEFAULT_SENSOR_TYPES,
+    )
 
-    _LOGGER.debug("Discovering sensors (enabled=%s)", enabled_types)
+    _LOGGER.debug(
+        "Discovering sensors (enabled=%s, energy=%s)",
+        enabled_types,
+        create_energy_sensors,
+    )
 
     for sensor_type, spec in _DYNAMIC_SENSOR_SPECS.items():
         # Skip without marking known so enabling a type later (options reload)
@@ -210,6 +236,34 @@ def create_entity_sensors(
                     unique_id,
                 )
             )
+
+            if sensor_type == SENSOR_TYPE_POWER and create_energy_sensors:
+                energy_key = energy_sensor_key(
+                    sensor_id, suffix=ENERGY_SENSOR_KEY_SUFFIX
+                )
+                if data.is_known_sensor(energy_key):
+                    continue
+
+                _LOGGER.debug("%s energy sensor will be added", energy_key)
+                data.add_known_sensor(energy_key)
+                entities.append(
+                    IpmiEnergySensor(
+                        coordinator,
+                        SensorEntityDescription(
+                            key=energy_key,
+                            name=f"{name} energy",
+                            native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+                            device_class=SensorDeviceClass.ENERGY,
+                            state_class=SensorStateClass.TOTAL_INCREASING,
+                            entity_registry_enabled_default=True,
+                            suggested_display_precision=3,
+                        ),
+                        data,
+                        unique_id,
+                        config_entry,
+                        power_sensor_key=sensor_id,
+                    )
+                )
 
     async_add_entities(entities, True)
 
@@ -252,6 +306,18 @@ class IpmiSensor(
             return state is not None
 
     @property
+    def extra_state_attributes(self) -> dict[str, str] | None:
+        """Expose IPMI SDR status when the backend provides it (addon)."""
+        if self.entity_description.key == KEY_STATUS:
+            return None
+        ipmi_status = self.coordinator.data.statuses.get(
+            self.entity_description.key
+        )
+        if ipmi_status:
+            return {"ipmi_status": ipmi_status}
+        return None
+
+    @property
     def native_value(self) -> str | float | None:
         """Return entity state from server states."""
         status = self.coordinator.data
@@ -271,6 +337,114 @@ class IpmiSensor(
                 return float(state)
             # Missing reading → None (not STATE_UNKNOWN) for numeric sensors.
             return None
+
+
+class IpmiEnergySensor(
+    CoordinatorEntity[DataUpdateCoordinator[dict[str, str]]], RestoreSensor
+):
+    """Energy sensor derived from an IPMI power reading (kWh, left Riemann sum)."""
+
+    _attr_has_entity_name = True
+
+    def __init__(
+        self,
+        coordinator: DataUpdateCoordinator[dict[str, str]],
+        sensor_description: SensorEntityDescription,
+        data: IpmiServer,
+        unique_id: str,
+        config_entry: ConfigEntry,
+        *,
+        power_sensor_key: str,
+    ) -> None:
+        """Initialize the energy sensor."""
+        super().__init__(coordinator)
+        self.entity_description = sensor_description
+        self._config_entry = config_entry
+        self._power_sensor_key = power_sensor_key
+        self._power_sensor_unique_id = f"{unique_id}_{data._alias}_{power_sensor_key}"
+        self._energy_kwh = 0.0
+        self._last_power_w: float | None = None
+        self._last_integration_time: datetime | None = None
+
+        self._attr_unique_id = f"{unique_id}_{data._alias}_{sensor_description.key}"
+        self._attr_device_info = device_info_from_ipmi_server(data, unique_id)
+
+    def _energy_monitoring_enabled(self) -> bool:
+        """Return True when power is monitored and energy companions are enabled."""
+        return energy_sensors_enabled(
+            self._config_entry.options.get(CONF_SENSOR_TYPES),
+            bool(
+                self._config_entry.options.get(
+                    CONF_CREATE_ENERGY_SENSORS, DEFAULT_CREATE_ENERGY_SENSORS
+                )
+            ),
+            default_types=DEFAULT_SENSOR_TYPES,
+        )
+
+    def _source_power_entity_enabled(self) -> bool:
+        """Return False when the linked power sensor entity is disabled in HA."""
+        entity_registry = er.async_get(self.hass)
+        entity_id = entity_registry.async_get_entity_id(
+            "sensor", DOMAIN, self._power_sensor_unique_id
+        )
+        if entity_id is None:
+            return True
+        entry = entity_registry.async_get(entity_id)
+        return entry is not None and not entry.disabled
+
+    async def async_added_to_hass(self) -> None:
+        """Restore accumulated energy after restart."""
+        await super().async_added_to_hass()
+        if (last_sensor_data := await self.async_get_last_sensor_data()) is not None:
+            if last_sensor_data.native_value is not None:
+                self._energy_kwh = float(last_sensor_data.native_value)
+        self._last_integration_time = dt_util.utcnow()
+
+    @property
+    def available(self) -> bool:
+        """Return True when power monitoring is active and the reading exists."""
+        if not self._energy_monitoring_enabled():
+            return False
+        if not self._source_power_entity_enabled():
+            return False
+        status = self.coordinator.data
+        if not status.states:
+            return False
+        return self._power_sensor_key in status.states
+
+    @property
+    def native_value(self) -> float:
+        """Return accumulated energy in kWh."""
+        return round(self._energy_kwh, 3)
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Integrate the latest power sample when the coordinator updates."""
+        if not self._energy_monitoring_enabled() or not self._source_power_entity_enabled():
+            self._last_integration_time = dt_util.utcnow()
+            super()._handle_coordinator_update()
+            return
+
+        status = self.coordinator.data
+        now = dt_util.utcnow()
+
+        if self._last_integration_time is None:
+            self._last_integration_time = now
+
+        if status.states:
+            power_raw = status.states.get(self._power_sensor_key)
+            if power_raw is not None:
+                current_power_w = float(power_raw)
+                elapsed = (now - self._last_integration_time).total_seconds()
+                self._energy_kwh = integrate_power_left_riemann(
+                    previous_power_w=self._last_power_w,
+                    elapsed_seconds=elapsed,
+                    accumulated_kwh=self._energy_kwh,
+                )
+                self._last_power_w = current_power_w
+
+        self._last_integration_time = now
+        super()._handle_coordinator_update()
 
 
 class IpmiConnectionBackendSensor(

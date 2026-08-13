@@ -26,12 +26,16 @@ from homeassistant.helpers import config_validation as cv, selector
 
 from . import IpmiServer
 from .const import (
+    BACKEND_PREFERENCE_AUTO,
     BACKEND_PREFERENCE_RMCP,
     CONF_ADDON_INTERFACE,
     CONF_ADDON_PARAMS,
     CONF_ADDON_PORT,
     CONF_BACKEND_PREFERENCE,
+    CONF_CREATE_ENERGY_SENSORS,
     CONF_IGNORE_CHECKSUM_ERRORS,
+    CONF_MINIMAL_IPMI,
+    CONF_POWER_OFF_DELAY,
     CONF_IPMI_SERVER_HOST,
     CONF_KG_KEY,
     CONF_PRIVILEGE_LEVEL,
@@ -39,7 +43,11 @@ from .const import (
     DEFAULT_ADDON_PORT,
     DEFAULT_ALIAS,
     DEFAULT_BACKEND_PREFERENCE,
+    DEFAULT_CREATE_ENERGY_SENSORS,
     DEFAULT_HOST,
+    DEFAULT_MINIMAL_IPMI,
+    DEFAULT_POWER_OFF_DELAY,
+    MAX_POWER_OFF_DELAY,
     DEFAULT_INTERFACE_TYPE,
     DEFAULT_IPMI_SERVER_HOST,
     DEFAULT_KG_KEY,
@@ -54,7 +62,13 @@ from .const import (
     PRIVILEGE_LEVELS,
     SENSOR_TYPES,
 )
-from .util import as_str_list, format_entry_unique_id, validate_kg_key
+from .util import (
+    as_str_list,
+    effective_sensor_types,
+    format_entry_unique_id,
+    normalize_options,
+    validate_kg_key,
+)
 
 # Flow-only flag; never stored on the config entry.
 CONF_ADVANCED = "advanced"
@@ -91,6 +105,15 @@ _PRIVILEGE_LEVEL_SELECTOR = vol.All(
 _PASSWORD_SELECTOR = selector.TextSelector(
     selector.TextSelectorConfig(type=selector.TextSelectorType.PASSWORD)
 )
+
+_BOOLEAN_SELECTOR = selector.BooleanSelector()
+
+
+def _coerce_bool(user_input: Mapping[str, Any], key: str, fallback: bool = False) -> bool:
+    """Read a boolean config-flow value (unchecked boxes are omitted from user_input)."""
+    if key not in user_input:
+        return fallback
+    return bool(user_input[key])
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -138,7 +161,7 @@ def _basic_schema(
             vol.Optional(
                 CONF_PASSWORD, default=defaults.get(CONF_PASSWORD, DEFAULT_PASSWORD)
             ): _PASSWORD_SELECTOR,
-            vol.Optional(CONF_ADVANCED, default=False): cv.boolean,
+            vol.Optional(CONF_ADVANCED, default=False): _BOOLEAN_SELECTOR,
         }
     )
     return vol.Schema(schema)
@@ -152,32 +175,47 @@ _SENSOR_TYPES_SELECTOR = selector.SelectSelector(
     )
 )
 
-_BACKEND_PREFERENCE_SELECTOR = vol.All(
-    selector.SelectSelector(
-        selector.SelectSelectorConfig(
-            options=BACKEND_PREFERENCES,
-            multiple=False,
-            mode="dropdown",
+def _backend_preference_selector() -> vol.All:
+    """Backend selector for advanced/options steps."""
+    return vol.All(
+        selector.SelectSelector(
+            selector.SelectSelectorConfig(
+                options=BACKEND_PREFERENCES,
+                multiple=False,
+                mode="dropdown",
+            ),
         ),
-    ),
-    vol.Coerce(str),
-)
-
-_OPTION_KEYS = {CONF_SENSOR_TYPES, CONF_BACKEND_PREFERENCE}
+        vol.Coerce(str),
+    )
 
 
-def _advanced_schema(defaults: Mapping[str, Any] | None = None) -> vol.Schema:
-    """Schema for optional addon / auth / sensor-filter advanced settings."""
+def _normalize_flow_options(config: Mapping[str, Any]) -> dict[str, Any]:
+    """Normalize flow config before validation or persistence."""
+    return normalize_options(config)
+
+
+_OPTION_KEYS = {
+    CONF_SENSOR_TYPES,
+    CONF_BACKEND_PREFERENCE,
+    CONF_CREATE_ENERGY_SENSORS,
+}
+
+
+def _advanced_schema(
+    defaults: Mapping[str, Any] | None = None,
+) -> vol.Schema:
+    """Schema for addon / auth settings (sensor filters are on advanced_extras)."""
     defaults = defaults or {}
+
     return vol.Schema(
         {
             vol.Optional(
                 CONF_PRIVILEGE_LEVEL,
                 default=defaults.get(CONF_PRIVILEGE_LEVEL, DEFAULT_PRIVILEGE_LEVEL),
             ): _PRIVILEGE_LEVEL_SELECTOR,
-            vol.Optional(
-                CONF_KG_KEY, default=defaults.get(CONF_KG_KEY, DEFAULT_KG_KEY)
-            ): cv.string,
+            vol.Optional(CONF_KG_KEY, default=defaults.get(CONF_KG_KEY, DEFAULT_KG_KEY)): (
+                cv.string
+            ),
             vol.Optional(
                 CONF_IPMI_SERVER_HOST,
                 default=defaults.get(CONF_IPMI_SERVER_HOST, DEFAULT_IPMI_SERVER_HOST),
@@ -195,19 +233,70 @@ def _advanced_schema(defaults: Mapping[str, Any] | None = None) -> vol.Schema:
                 default=defaults.get(CONF_ADDON_PARAMS) or "",
             ): cv.string,
             vol.Optional(
+                CONF_BACKEND_PREFERENCE,
+                default=defaults.get(
+                    CONF_BACKEND_PREFERENCE, DEFAULT_BACKEND_PREFERENCE
+                ),
+            ): _backend_preference_selector(),
+        }
+    )
+
+
+def _advanced_extras_schema(defaults: Mapping[str, Any] | None = None) -> vol.Schema:
+    """Schema for sensor / FRU filters (skipped when minimal IPMI is enabled)."""
+    defaults = defaults or {}
+    return vol.Schema(
+        {
+            vol.Optional(
                 CONF_IGNORE_CHECKSUM_ERRORS,
                 default=defaults.get(CONF_IGNORE_CHECKSUM_ERRORS, False),
-            ): cv.boolean,
+            ): _BOOLEAN_SELECTOR,
             vol.Optional(
                 CONF_SENSOR_TYPES,
                 default=list(defaults.get(CONF_SENSOR_TYPES, DEFAULT_SENSOR_TYPES)),
             ): _SENSOR_TYPES_SELECTOR,
             vol.Optional(
-                CONF_BACKEND_PREFERENCE,
+                CONF_CREATE_ENERGY_SENSORS,
                 default=defaults.get(
-                    CONF_BACKEND_PREFERENCE, DEFAULT_BACKEND_PREFERENCE
+                    CONF_CREATE_ENERGY_SENSORS, DEFAULT_CREATE_ENERGY_SENSORS
                 ),
-            ): _BACKEND_PREFERENCE_SELECTOR,
+            ): _BOOLEAN_SELECTOR,
+        }
+    )
+
+
+def _options_schema(
+    defaults: Mapping[str, Any] | None = None,
+) -> vol.Schema:
+    """Schema for integration options (Configure)."""
+    defaults = defaults or {}
+
+    return vol.Schema(
+        {
+            vol.Optional(
+                CONF_SCAN_INTERVAL,
+                default=defaults.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
+            ): vol.All(vol.Coerce(int), vol.Clamp(min=10, max=300)),
+            vol.Optional(
+                CONF_BACKEND_PREFERENCE,
+                default=defaults.get(CONF_BACKEND_PREFERENCE, DEFAULT_BACKEND_PREFERENCE),
+            ): _backend_preference_selector(),
+            vol.Optional(
+                CONF_POWER_OFF_DELAY,
+                default=defaults.get(CONF_POWER_OFF_DELAY, DEFAULT_POWER_OFF_DELAY),
+            ): vol.All(vol.Coerce(int), vol.Range(min=0, max=MAX_POWER_OFF_DELAY)),
+            vol.Optional(
+                CONF_SENSOR_TYPES,
+                default=list(
+                    defaults.get(CONF_SENSOR_TYPES, DEFAULT_SENSOR_TYPES)
+                ),
+            ): _SENSOR_TYPES_SELECTOR,
+            vol.Optional(
+                CONF_CREATE_ENERGY_SENSORS,
+                default=defaults.get(
+                    CONF_CREATE_ENERGY_SENSORS, DEFAULT_CREATE_ENERGY_SENSORS
+                ),
+            ): _BOOLEAN_SELECTOR,
         }
     )
 
@@ -224,6 +313,7 @@ def _advanced_defaults() -> dict[str, Any]:
         CONF_IGNORE_CHECKSUM_ERRORS: False,
         CONF_SENSOR_TYPES: list(DEFAULT_SENSOR_TYPES),
         CONF_BACKEND_PREFERENCE: DEFAULT_BACKEND_PREFERENCE,
+        CONF_CREATE_ENERGY_SENSORS: DEFAULT_CREATE_ENERGY_SENSORS,
     }
 
 
@@ -238,13 +328,21 @@ def _entry_data_from_config(config: Mapping[str, Any]) -> dict[str, Any]:
 
 def _entry_options_from_config(config: Mapping[str, Any]) -> dict[str, Any]:
     """Options extracted from flow input (sensor filters + backend preference)."""
+    normalized = _normalize_flow_options(config)
+    sensor_types = effective_sensor_types(
+        normalized, default_types=DEFAULT_SENSOR_TYPES
+    )
     return {
-        CONF_SENSOR_TYPES: as_str_list(
-            config.get(CONF_SENSOR_TYPES), DEFAULT_SENSOR_TYPES
-        ),
-        CONF_BACKEND_PREFERENCE: config.get(
+        CONF_SENSOR_TYPES: sensor_types,
+        CONF_BACKEND_PREFERENCE: normalized.get(
             CONF_BACKEND_PREFERENCE, DEFAULT_BACKEND_PREFERENCE
         ),
+        CONF_CREATE_ENERGY_SENSORS: normalized.get(
+            CONF_CREATE_ENERGY_SENSORS, DEFAULT_CREATE_ENERGY_SENSORS
+        )
+        if sensor_types
+        else False,
+        CONF_MINIMAL_IPMI: False,
     }
 
 
@@ -269,6 +367,12 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
             "addon_interface": data.get(CONF_ADDON_INTERFACE),
             "addon_extra_params": data.get(CONF_ADDON_PARAMS),
             CONF_IGNORE_CHECKSUM_ERRORS: data.get(CONF_IGNORE_CHECKSUM_ERRORS, False),
+            "backend_preference": data.get(
+                CONF_BACKEND_PREFERENCE, DEFAULT_BACKEND_PREFERENCE
+            ),
+            CONF_SENSOR_TYPES: effective_sensor_types(
+                data, default_types=DEFAULT_SENSOR_TYPES
+            ),
         },
     )
     await hass.async_add_executor_job(ipmi_data.update)
@@ -291,7 +395,7 @@ class IpmiConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for IPMI."""
 
     VERSION = 2
-    MINOR_VERSION = 5
+    MINOR_VERSION = 9
 
     def __init__(self) -> None:
         """Initialize the ipmi config flow."""
@@ -326,7 +430,8 @@ class IpmiConfigFlow(ConfigFlow, domain=DOMAIN):
                     CONF_PORT: self.discovery_info.port or DEFAULT_PORT,
                 }
 
-            advanced = bool(user_input.pop(CONF_ADVANCED, False))
+            advanced = _coerce_bool(user_input, CONF_ADVANCED, False)
+            user_input.pop(CONF_ADVANCED, None)
             self.ipmi_config.update(user_input)
             self._show_advanced = advanced
 
@@ -334,6 +439,7 @@ class IpmiConfigFlow(ConfigFlow, domain=DOMAIN):
                 return await self.async_step_advanced()
 
             self._merge_advanced_defaults()
+            self.ipmi_config = _normalize_flow_options(self.ipmi_config)
             return await self._async_create_or_show_errors(errors_step="user")
 
         return self.async_show_form(
@@ -348,16 +454,38 @@ class IpmiConfigFlow(ConfigFlow, domain=DOMAIN):
         """Collect optional addon and authentication settings."""
         errors: dict[str, str] = {}
         if user_input is not None:
-            # Empty optional text fields should clear rather than keep stale values.
             if CONF_ADDON_PARAMS in user_input and not user_input[CONF_ADDON_PARAMS]:
                 user_input[CONF_ADDON_PARAMS] = None
             self.ipmi_config.update(user_input)
-            return await self._async_create_or_show_errors(errors_step="advanced")
+            return await self.async_step_advanced_extras()
 
         defaults = {**_advanced_defaults(), **self.ipmi_config}
         return self.async_show_form(
             step_id="advanced",
             data_schema=_advanced_schema(defaults),
+            errors=errors,
+        )
+
+    async def async_step_advanced_extras(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Collect sensor / FRU filters (not used in minimal IPMI mode)."""
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            if CONF_SENSOR_TYPES in user_input:
+                user_input[CONF_SENSOR_TYPES] = as_str_list(
+                    user_input[CONF_SENSOR_TYPES], DEFAULT_SENSOR_TYPES
+                )
+            self.ipmi_config.update(user_input)
+            self.ipmi_config = _normalize_flow_options(self.ipmi_config)
+            return await self._async_create_or_show_errors(
+                errors_step="advanced_extras"
+            )
+
+        defaults = {**_advanced_defaults(), **self.ipmi_config}
+        return self.async_show_form(
+            step_id="advanced_extras",
+            data_schema=_advanced_extras_schema(defaults),
             errors=errors,
         )
 
@@ -370,8 +498,16 @@ class IpmiConfigFlow(ConfigFlow, domain=DOMAIN):
         """Validate connection and create the entry, or re-show the given step."""
         _, errors = await self._async_validate_or_error(self.ipmi_config)
         if errors:
-            if errors_step == "advanced":
-                defaults = {**_advanced_defaults(), **self.ipmi_config}
+            if errors_step in ("advanced", "advanced_extras"):
+                defaults = _normalize_flow_options(
+                    {**_advanced_defaults(), **self.ipmi_config}
+                )
+                if errors_step == "advanced_extras":
+                    return self.async_show_form(
+                        step_id="advanced_extras",
+                        data_schema=_advanced_extras_schema(defaults),
+                        errors=errors,
+                    )
                 return self.async_show_form(
                     step_id="advanced",
                     data_schema=_advanced_schema(defaults),
@@ -457,15 +593,17 @@ class IpmiConfigFlow(ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            advanced = bool(user_input.pop(CONF_ADVANCED, False))
-            self.ipmi_config = {**entry.data, **user_input}
+            advanced = _coerce_bool(user_input, CONF_ADVANCED, False)
+            user_input.pop(CONF_ADVANCED, None)
+            self.ipmi_config = {**entry.data, **entry.options, **user_input}
             self._show_advanced = advanced
             if advanced:
                 return await self.async_step_reconfigure_advanced()
             self._merge_advanced_defaults()
+            self.ipmi_config = _normalize_flow_options(self.ipmi_config)
             return await self._async_finish_reconfigure(errors_step="reconfigure")
 
-        self.ipmi_config = dict(entry.data)
+        self.ipmi_config = {**entry.data, **entry.options}
         return self.async_show_form(
             step_id="reconfigure",
             data_schema=_basic_schema(None, self.ipmi_config),
@@ -487,18 +625,41 @@ class IpmiConfigFlow(ConfigFlow, domain=DOMAIN):
             if CONF_ADDON_PARAMS in user_input and not user_input[CONF_ADDON_PARAMS]:
                 user_input[CONF_ADDON_PARAMS] = None
             self.ipmi_config.update(user_input)
-            return await self._async_finish_reconfigure(
-                errors_step="reconfigure_advanced"
-            )
+            return await self.async_step_reconfigure_advanced_extras()
 
-        defaults = {
-            **_advanced_defaults(),
-            **entry.options,
-            **self.ipmi_config,
-        }
+        defaults = {**_advanced_defaults(), **entry.options, **self.ipmi_config}
         return self.async_show_form(
             step_id="reconfigure_advanced",
             data_schema=_advanced_schema(defaults),
+            errors=errors,
+        )
+
+    async def async_step_reconfigure_advanced_extras(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Sensor / FRU filters during reconfigure (not used in minimal IPMI mode)."""
+        entry = (
+            self._get_reconfigure_entry()
+            if hasattr(self, "_get_reconfigure_entry")
+            else self.hass.config_entries.async_get_entry(self.context["entry_id"])
+        )
+        assert entry is not None
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            if CONF_SENSOR_TYPES in user_input:
+                user_input[CONF_SENSOR_TYPES] = as_str_list(
+                    user_input[CONF_SENSOR_TYPES], DEFAULT_SENSOR_TYPES
+                )
+            self.ipmi_config.update(user_input)
+            self.ipmi_config = _normalize_flow_options(self.ipmi_config)
+            return await self._async_finish_reconfigure(
+                errors_step="reconfigure_advanced_extras"
+            )
+
+        defaults = {**_advanced_defaults(), **entry.options, **self.ipmi_config}
+        return self.async_show_form(
+            step_id="reconfigure_advanced_extras",
+            data_schema=_advanced_extras_schema(defaults),
             errors=errors,
         )
 
@@ -509,14 +670,23 @@ class IpmiConfigFlow(ConfigFlow, domain=DOMAIN):
         ) else self.hass.config_entries.async_get_entry(self.context["entry_id"])
         assert entry is not None
 
-        _, errors = await self._async_validate_or_error(self.ipmi_config)
+        _, errors = await self._async_validate_or_error(
+            {**entry.options, **self.ipmi_config}
+        )
         if errors:
-            if errors_step == "reconfigure_advanced":
-                defaults = {
-                    **_advanced_defaults(),
-                    **entry.options,
-                    **self.ipmi_config,
-                }
+            if errors_step in (
+                "reconfigure_advanced",
+                "reconfigure_advanced_extras",
+            ):
+                defaults = _normalize_flow_options(
+                    {**_advanced_defaults(), **entry.options, **self.ipmi_config}
+                )
+                if errors_step == "reconfigure_advanced_extras":
+                    return self.async_show_form(
+                        step_id="reconfigure_advanced_extras",
+                        data_schema=_advanced_extras_schema(defaults),
+                        errors=errors,
+                    )
                 return self.async_show_form(
                     step_id="reconfigure_advanced",
                     data_schema=_advanced_schema(defaults),
@@ -576,7 +746,7 @@ class IpmiConfigFlow(ConfigFlow, domain=DOMAIN):
             "unique_id": unique_id,
             "reason": "reconfigure_successful",
         }
-        # Sensor filters live in options; only rewrite them when advanced was shown.
+        # Sensor filters live in options when advanced settings were shown.
         if self._show_advanced:
             update_kwargs["options"] = {
                 **entry.options,
@@ -649,16 +819,19 @@ class OptionsFlowHandler(OptionsFlow):
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Handle options flow."""
+        defaults = dict(self.config_entry.options)
+
         if user_input is not None:
-            # Normalize multi-selects in case a single choice arrived as a string.
             if CONF_SENSOR_TYPES in user_input:
                 user_input[CONF_SENSOR_TYPES] = as_str_list(
                     user_input[CONF_SENSOR_TYPES], DEFAULT_SENSOR_TYPES
                 )
             if CONF_BACKEND_PREFERENCE not in user_input:
                 user_input[CONF_BACKEND_PREFERENCE] = DEFAULT_BACKEND_PREFERENCE
-            # Drop removed option if still present from older versions.
             user_input.pop("diagnostic_sensor_types", None)
+            user_input.pop(CONF_MINIMAL_IPMI, None)
+            user_input = _normalize_flow_options({**defaults, **user_input})
+            user_input[CONF_MINIMAL_IPMI] = False
 
             previous_backend = self.config_entry.options.get(
                 CONF_BACKEND_PREFERENCE, DEFAULT_BACKEND_PREFERENCE
@@ -672,28 +845,10 @@ class OptionsFlowHandler(OptionsFlow):
 
             return self.async_create_entry(title="", data=user_input)
 
-        options = self.config_entry.options
-        scan_interval = options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
-        sensor_types = as_str_list(
-            options.get(CONF_SENSOR_TYPES), DEFAULT_SENSOR_TYPES
+        return self.async_show_form(
+            step_id="init",
+            data_schema=_options_schema(defaults),
         )
-        backend_preference = options.get(
-            CONF_BACKEND_PREFERENCE, DEFAULT_BACKEND_PREFERENCE
-        )
-
-        base_schema = {
-            vol.Optional(CONF_SCAN_INTERVAL, default=scan_interval): vol.All(
-                vol.Coerce(int), vol.Clamp(min=10, max=300)
-            ),
-            vol.Optional(
-                CONF_SENSOR_TYPES, default=list(sensor_types)
-            ): _SENSOR_TYPES_SELECTOR,
-            vol.Optional(
-                CONF_BACKEND_PREFERENCE, default=backend_preference
-            ): _BACKEND_PREFERENCE_SELECTOR,
-        }
-
-        return self.async_show_form(step_id="init", data_schema=vol.Schema(base_schema))
 
     async def async_step_rmcp_warning(
         self, user_input: dict[str, Any] | None = None

@@ -24,7 +24,7 @@
         "data_description": {
           "host": "BMC-Hostname oder IP-Adresse",
           "port": "IPMI-/RMCP-Port (üblicherweise 623)",
-          "advanced": "Addon-URL, Schnittstelle, Kg-Schlüssel, Berechtigungsstufe und FRU-Prüfsummeneinstellungen"
+          "advanced": "Addon-URL, Schnittstelle, Kg-Schlüssel, Berechtigungsstufe, FRU-Prüfsummeneinstellungen, Sensorfilter und Minimal-IPMI"
         }
       },
       "advanced": {
@@ -39,7 +39,9 @@
           "addon_extra_params": "Zusätzliche ipmitool-Parameter",
           "ignore_checksum_errors": "Ignoriere FRU-Prüfsummenfehler",
           "sensor_types": "Zu entdeckende Sensortypen",
-          "backend_preference": "Bevorzugtes Verbindungs-Backend"
+          "backend_preference": "Bevorzugtes Verbindungs-Backend",
+          "create_energy_sensors": "Energiesensoren aus Leistungswerten erstellen",
+          "minimal_ipmi": "Minimal-IPMI (nur Stromversorgung)"
         },
         "data_description": {
           "kg_key": "Optional. Erfordert das ipmi-server-Addon; wird vom python-ipmi-Fallback nicht unterstützt.",
@@ -47,7 +49,9 @@
           "addon_interface": "Üblicherweise lanplus. auto lässt ipmitool entscheiden.",
           "addon_extra_params": "Optionale ipmitool-Argumente (z. B. Cipher-Suite).",
           "sensor_types": "Nur ausgewählte Typen werden für neu entdeckte Sensoren angelegt. Standard entspricht dem bisherigen Verhalten (alle Typen).",
-          "backend_preference": "auto = zuerst Addon, dann RMCP (bisheriges Verhalten). addon = nur Addon. rmcp = nur python-ipmi (keine Addon-Anfragen). Warnung: der send_command-Dienst benötigt das Addon und funktioniert nicht mit rmcp."
+          "backend_preference": "auto = zuerst Addon, dann RMCP (bisheriges Verhalten). addon = nur Addon. rmcp = nur python-ipmi (keine Addon-Anfragen). Warnung: der send_command-Dienst benötigt das Addon und funktioniert nicht mit rmcp.",
+          "create_energy_sensors": "Erfordert Leistung in den Sensortypen. Jeder Leistungssensor erhält einen kWh-Energiesensor (standardmäßig aktiv).",
+          "minimal_ipmi": "Für BMCs mit eingeschränktem Befehlssatz (z. B. Sipeed NanoKVM). Überspringt FRU- und Sensorabfragen; nur Stromstatus und Chassis-Steuerung. Statusabfrage über python-ipmi (RMCP), nicht über die vollständige Addon-Abfrage."
         }
       },
       "reconfigure": {
@@ -74,7 +78,9 @@
           "addon_extra_params": "Zusätzliche ipmitool-Parameter",
           "ignore_checksum_errors": "Ignoriere FRU-Prüfsummenfehler",
           "sensor_types": "Zu entdeckende Sensortypen",
-          "backend_preference": "Bevorzugtes Verbindungs-Backend"
+          "backend_preference": "Bevorzugtes Verbindungs-Backend",
+          "create_energy_sensors": "Energiesensoren aus Leistungswerten erstellen",
+          "minimal_ipmi": "Minimal-IPMI (nur Stromversorgung)"
         },
         "data_description": {
           "kg_key": "Optional. Erfordert das ipmi-server-Addon; wird vom python-ipmi-Fallback nicht unterstützt.",
@@ -82,7 +88,9 @@
           "addon_interface": "Üblicherweise lanplus. auto lässt ipmitool entscheiden.",
           "addon_extra_params": "Optionale ipmitool-Argumente (z. B. Cipher-Suite).",
           "sensor_types": "Nur ausgewählte Typen werden für neu entdeckte Sensoren angelegt. Standard entspricht dem bisherigen Verhalten (alle Typen).",
-          "backend_preference": "auto = zuerst Addon, dann RMCP (bisheriges Verhalten). addon = nur Addon. rmcp = nur python-ipmi (keine Addon-Anfragen). Warnung: der send_command-Dienst benötigt das Addon und funktioniert nicht mit rmcp."
+          "backend_preference": "auto = zuerst Addon, dann RMCP (bisheriges Verhalten). addon = nur Addon. rmcp = nur python-ipmi (keine Addon-Anfragen). Warnung: der send_command-Dienst benötigt das Addon und funktioniert nicht mit rmcp.",
+          "create_energy_sensors": "Erfordert Leistung in den Sensortypen. Jeder Leistungssensor erhält einen kWh-Energiesensor (standardmäßig aktiv).",
+          "minimal_ipmi": "Für BMCs mit eingeschränktem Befehlssatz (z. B. Sipeed NanoKVM). Überspringt FRU- und Sensorabfragen; nur Stromstatus und Chassis-Steuerung. Statusabfrage über python-ipmi (RMCP), nicht über die vollständige Addon-Abfrage."
         }
       },
       "reauth_confirm": {
@@ -145,11 +153,17 @@
         "data": {
           "scan_interval": "Scan-Intervall (Sekunden)",
           "sensor_types": "Zu entdeckende Sensortypen",
-          "backend_preference": "Bevorzugtes Verbindungs-Backend"
+          "backend_preference": "Bevorzugtes Verbindungs-Backend",
+          "create_energy_sensors": "Energiesensoren aus Leistungswerten erstellen",
+          "minimal_ipmi": "Minimal-IPMI (nur Stromversorgung)",
+          "power_off_delay": "Verzögerung Schalter Aus (Sekunden)"
         },
         "data_description": {
           "sensor_types": "Nur ausgewählte Typen werden für neu entdeckte Sensoren angelegt. Standard entspricht dem bisherigen Verhalten (alle Typen).",
-          "backend_preference": "auto = zuerst Addon, dann RMCP (bisheriges Verhalten). addon = nur Addon. rmcp = nur python-ipmi (keine Addon-Anfragen). Warnung: der send_command-Dienst benötigt das Addon und funktioniert nicht mit rmcp."
+          "backend_preference": "auto = zuerst Addon, dann RMCP (bisheriges Verhalten). addon = nur Addon. rmcp = nur python-ipmi (keine Addon-Anfragen). Warnung: der send_command-Dienst benötigt das Addon und funktioniert nicht mit rmcp.",
+          "create_energy_sensors": "Erfordert Leistung in den Sensortypen. Jeder Leistungssensor erhält einen kWh-Energiesensor (standardmäßig aktiv). Energie-Entitäten sind nicht verfügbar, wenn Leistung nicht überwacht wird, die Option aus ist oder der Leistungssensor deaktiviert ist.",
+          "power_off_delay": "Nach Soft-Abschaltung bleibt der Netzschalter für so viele Sekunden auf Aus, auch wenn das BMC noch Strom meldet. 0 = deaktiviert (Schalter folgt sofort dem BMC). Betrifft nicht den State-Sensor.",
+          "minimal_ipmi": "Für BMCs mit eingeschränktem Befehlssatz (z. B. Sipeed NanoKVM). Überspringt FRU- und Sensorabfragen; nur Stromstatus und Chassis-Steuerung. Statusabfrage über python-ipmi (RMCP), nicht über die vollständige Addon-Abfrage."
         }
       },
       "rmcp_warning": {

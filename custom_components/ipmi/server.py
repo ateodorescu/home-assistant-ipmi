@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 import logging
+import threading
 import time
 from typing import Any
 
@@ -16,6 +18,7 @@ from homeassistant.helpers.dispatcher import dispatcher_send
 
 from .const import (
     ADDON_FAILURE_SKIP_THRESHOLD,
+    ADDON_META_PATH,
     ADDON_SKIP_SECONDS,
     BACKEND_ADDON,
     BACKEND_NONE,
@@ -26,14 +29,23 @@ from .const import (
     CONF_IGNORE_CHECKSUM_ERRORS,
     DEFAULT_BACKEND_PREFERENCE,
     DEFAULT_HTTP_TIMEOUT,
+    DEFAULT_SENSOR_TYPES,
     IPMI_NEW_SENSOR_SIGNAL,
+    SENSOR_TYPES,
 )
 from .util import (
     addon_action_succeeded,
     categorize_rmcp_sensor,
+    effective_sensor_types,
     generate_sensor_id,
+    IpmiChassisCommandError,
+    iter_discovered_sensor_ids,
     looks_like_auth_error,
+    normalize_addon_mapping,
+    normalize_addon_sensor_groups,
+    power_only_poll,
     redact_connection_secrets,
+    update_addon_capabilities,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -50,6 +62,7 @@ class IpmiDeviceInfo:
     power_on: bool = False
     sensors: dict[str, dict[str, str]] = field(default_factory=dict)
     states: dict[str, Any] = field(default_factory=dict)
+    statuses: dict[str, str] = field(default_factory=dict)
     alias: str | None = None
 
 
@@ -89,6 +102,9 @@ class IpmiServer:
         self._backend_preference = connection_data.get(
             "backend_preference", DEFAULT_BACKEND_PREFERENCE
         )
+        self._sensor_types = effective_sensor_types(
+            connection_data, default_types=DEFAULT_SENSOR_TYPES
+        )
 
         self._device_info: IpmiDeviceInfo | None = None
         self._known_sensors: set[str] = set()
@@ -101,9 +117,14 @@ class IpmiServer:
         self._addon_use_post: bool = False
         self._addon_fail_count = 0
         self._addon_skip_until: float = 0.0
+        self._addon_capabilities: set[str] = set()
+        self._addon_version: str | None = None
+        self._addon_api_version: int | None = None
+        self._addon_meta_probed: bool = False
 
         # Reused RMCP session (reconnected on error).
         self._rmcp_ipmi: pyipmi.Ipmi | None = None
+        self._rmcp_lock = threading.Lock()
 
     @property
     def name(self) -> str:
@@ -118,6 +139,29 @@ class IpmiServer:
     def set_backend_preference(self, preference: str) -> None:
         """Update backend preference (e.g. after options reload)."""
         self._backend_preference = preference or DEFAULT_BACKEND_PREFERENCE
+
+    def set_sensor_types(self, sensor_types: list[str]) -> None:
+        """Update requested sensor types (e.g. after options reload)."""
+        self._sensor_types = list(sensor_types)
+
+    @property
+    def addon_capabilities(self) -> set[str]:
+        """Capabilities reported by the ipmi-server addon, if any."""
+        return set(self._addon_capabilities)
+
+    @property
+    def addon_version(self) -> str | None:
+        """ipmi-server add-on version string from the last capability payload."""
+        return self._addon_version
+
+    def _power_only_poll(self) -> bool:
+        """Return True when polling should skip sensor/FRU discovery."""
+        return power_only_poll(self._sensor_types)
+
+    @staticmethod
+    def _empty_sensor_groups() -> dict[str, dict[str, str]]:
+        """Return empty sensor buckets for all dynamic sensor types."""
+        return {sensor_type: {} for sensor_type in SENSOR_TYPES}
 
     def _addon_query_params(self, extra: dict[str, Any] | None = None) -> dict[str, Any]:
         """Build addon request parameters (auth + optional extras)."""
@@ -140,9 +184,57 @@ class IpmiServer:
         if self._addon_extra_params:
             params["extra"] = self._addon_extra_params
 
+        poll_params = self._addon_poll_query_params()
+        if poll_params:
+            params.update(poll_params)
+
         if extra:
             params.update(extra)
         return params
+
+    def _addon_poll_query_params(self) -> dict[str, str]:
+        """Optional poll query params (additive; ignored by older addon builds)."""
+        if self._power_only_poll():
+            return {"sensor_types": ""}
+        if set(self._sensor_types) >= set(SENSOR_TYPES):
+            return {}
+        return {"sensor_types": ",".join(self._sensor_types)}
+
+    def _ingest_addon_capabilities(self, response: Mapping[str, Any]) -> None:
+        """Update cached addon version/capabilities from a JSON payload."""
+        self._addon_capabilities = update_addon_capabilities(
+            self._addon_capabilities, response
+        )
+        addon_version = response.get("addon_version")
+        if isinstance(addon_version, str) and addon_version:
+            self._addon_version = addon_version
+        api_version = response.get("api_version")
+        if isinstance(api_version, int):
+            self._addon_api_version = api_version
+        elif isinstance(api_version, str) and api_version.isdigit():
+            self._addon_api_version = int(api_version)
+
+    def _probe_addon_meta(self) -> None:
+        """Probe GET /meta once for capability discovery (no BMC credentials)."""
+        if self._addon_meta_probed or not self._should_try_addon():
+            return
+        self._addon_meta_probed = True
+        url = f"{self._addon_url}/{ADDON_META_PATH}"
+        try:
+            http_resp = requests.get(url, timeout=10)
+            if http_resp.status_code in {404, 405}:
+                return
+            http_resp.raise_for_status()
+            payload = http_resp.json()
+            if isinstance(payload, dict):
+                self._ingest_addon_capabilities(payload)
+                self._record_addon_transport_success()
+        except Exception as err:  # pylint: disable=broad-except
+            _LOGGER.debug(
+                "Addon meta probe at %s failed (%s); continuing with legacy behavior",
+                url,
+                type(err).__name__,
+            )
 
     def _should_try_addon(self) -> bool:
         """Whether this poll/action should attempt the addon HTTP API."""
@@ -225,6 +317,8 @@ class IpmiServer:
                         response = http_resp.json()
                         if addon_action_succeeded(response):
                             self._record_addon_transport_success()
+                            if isinstance(response, dict):
+                                self._ingest_addon_capabilities(response)
                             return response
                     # POST not usable for this addon build — stick to GET.
                     self._addon_use_post = False
@@ -240,6 +334,8 @@ class IpmiServer:
             http_resp.raise_for_status()
             response = http_resp.json()
             self._record_addon_transport_success()
+            if isinstance(response, dict):
+                self._ingest_addon_capabilities(response)
             return response
         except Exception as err:  # pylint: disable=broad-except
             err_msg = redact_connection_secrets(
@@ -271,21 +367,54 @@ class IpmiServer:
 
     def get_from_rmcp(self) -> dict[str, Any] | None:
         """Poll device info and sensors via python-ipmi (RMCP)."""
+        with self._rmcp_lock:
+            if self._power_only_poll():
+                return self._get_from_rmcp_power_only()
+            return self._get_from_rmcp_full()
+
+    def _get_from_rmcp_power_only(self) -> dict[str, Any] | None:
+        """Poll chassis power and basic device id only (no FRU/SDR). Caller holds RMCP lock."""
         try:
             json: dict[str, Any] = {
                 "device": {},
-                "sensors": {
-                    "temperature": {},
-                    "voltage": {},
-                    "fan": {},
-                    "power": {},
-                    "current": {},
-                    "time": {},
-                },
+                "sensors": self._empty_sensor_groups(),
                 "states": {},
                 "power_on": False,
             }
-            ipmi = self.connect()
+            ipmi = self._connect_unlocked()
+            try:
+                device_id = ipmi.get_device_id()
+                json["device"]["manufacturer_name"] = "None"
+                json["device"]["product_name"] = "None"
+                json["device"]["firmware_revision"] = (
+                    device_id.fw_revision.version_to_string()
+                )
+                json["device"]["product_id"] = device_id.product_id
+                json["power_on"] = ipmi.get_chassis_status().power_on
+            except Exception:
+                self._invalidate_rmcp_session_unlocked()
+                raise
+        except Exception as err:  # pylint: disable=broad-except
+            self._last_rmcp_error = f"{type(err).__name__}: {err}"
+            _LOGGER.warning(
+                "RMCP power-only poll for IPMI server %s failed: %s",
+                self._host,
+                self._last_rmcp_error,
+            )
+            return None
+
+        return json
+
+    def _get_from_rmcp_full(self) -> dict[str, Any] | None:
+        """Poll full device info, FRU metadata, and SDR sensors via python-ipmi. Caller holds RMCP lock."""
+        try:
+            json: dict[str, Any] = {
+                "device": {},
+                "sensors": self._empty_sensor_groups(),
+                "states": {},
+                "power_on": False,
+            }
+            ipmi = self._connect_unlocked()
             try:
                 device_id = ipmi.get_device_id()
 
@@ -359,7 +488,7 @@ class IpmiServer:
                             json["states"][id_string] = value
             except Exception:
                 # Drop cached session so the next call reconnects.
-                self._invalidate_rmcp_session()
+                self._invalidate_rmcp_session_unlocked()
                 raise
 
         except Exception as err:  # pylint: disable=broad-except
@@ -374,26 +503,34 @@ class IpmiServer:
         return json
 
     def run_rmcp_command(self, command: int) -> None:
-        """Send a chassis control command over RMCP."""
-        try:
-            ipmi = self.connect()
+        """Send a chassis control command over RMCP.
+
+        Raises:
+            IpmiChassisCommandError: When the command cannot be sent or completes with error.
+        """
+        with self._rmcp_lock:
             try:
-                ipmi.chassis_control(command)
-            except Exception:
-                self._invalidate_rmcp_session()
-                raise
-        except Exception as err:  # pylint: disable=broad-except
-            _LOGGER.error(
-                "Error connecting to IPMI server %s: %s: %s",
-                self._host,
-                type(err).__name__,
-                err,
-            )
+                ipmi = self._connect_unlocked()
+                try:
+                    ipmi.chassis_control(command)
+                except Exception:
+                    self._invalidate_rmcp_session_unlocked()
+                    raise
+            except Exception as err:
+                raise IpmiChassisCommandError(
+                    f"RMCP chassis command failed for {self._host}: "
+                    f"{type(err).__name__}: {err}"
+                ) from err
+
+    def _invalidate_rmcp_session_unlocked(self) -> None:
+        """Close and forget the cached RMCP session (caller must hold ``_rmcp_lock``)."""
+        self._close_ipmi(self._rmcp_ipmi)
+        self._rmcp_ipmi = None
 
     def _invalidate_rmcp_session(self) -> None:
         """Close and forget the cached RMCP session."""
-        self._close_ipmi(self._rmcp_ipmi)
-        self._rmcp_ipmi = None
+        with self._rmcp_lock:
+            self._invalidate_rmcp_session_unlocked()
 
     def _close_ipmi(self, ipmi: pyipmi.Ipmi | None) -> None:
         """Close an IPMI connection, ignoring teardown errors."""
@@ -411,15 +548,16 @@ class IpmiServer:
 
     def close(self) -> None:
         """Release the cached RMCP session (call on unload)."""
-        self._invalidate_rmcp_session()
+        with self._rmcp_lock:
+            self._invalidate_rmcp_session_unlocked()
 
     def connect(self) -> pyipmi.Ipmi:
-        """Return a (re)used native RMCP IPMI session.
+        """Return a (re)used native RMCP IPMI session."""
+        with self._rmcp_lock:
+            return self._connect_unlocked()
 
-        python-ipmi >= 0.5.8 requires interface.open() before session traffic;
-        ipmi.open() does that and then establishes the session. Target must be
-        set before open (see python-ipmi RMCP example).
-        """
+    def _connect_unlocked(self) -> pyipmi.Ipmi:
+        """Return a (re)used RMCP session. Caller must hold ``_rmcp_lock``."""
         if self._rmcp_ipmi is not None:
             return self._rmcp_ipmi
 
@@ -457,6 +595,8 @@ class IpmiServer:
 
         json: dict[str, Any] | None = None
 
+        self._probe_addon_meta()
+
         if self._should_try_addon():
             json = self.get_from_addon(None)
             if json is not None:
@@ -469,7 +609,13 @@ class IpmiServer:
                 else:
                     self.last_backend = BACKEND_ADDON
 
-        if json is None and self._should_try_rmcp():
+            if json is None and self._should_try_rmcp():
+                json = self.get_from_rmcp()
+                if json is not None:
+                    self.last_backend = BACKEND_RMCP
+                else:
+                    self.auth_failed = looks_like_auth_error(self._last_rmcp_error)
+        elif self._should_try_rmcp():
             json = self.get_from_rmcp()
             if json is not None:
                 self.last_backend = BACKEND_RMCP
@@ -478,10 +624,13 @@ class IpmiServer:
 
         if json is not None:
             info = IpmiDeviceInfo()
-            info.device = json["device"]
-            info.power_on = json["power_on"]
-            info.sensors = json["sensors"]
-            info.states = json["states"]
+            info.device = json.get("device") if isinstance(json.get("device"), dict) else {}
+            info.power_on = bool(json.get("power_on"))
+            info.sensors = normalize_addon_sensor_groups(
+                json.get("sensors"), sensor_types=SENSOR_TYPES
+            )
+            info.states = normalize_addon_mapping(json.get("states"))
+            info.statuses = normalize_addon_mapping(json.get("statuses"))
             info.alias = self._alias
             self._device_info = info
             self.auth_failed = False
@@ -489,13 +638,14 @@ class IpmiServer:
             self._device_info = None
 
         if info is not None:
-            if len(info.states) == 0:
+            sensor_ids = iter_discovered_sensor_ids(info.sensors, info.states)
+            if not sensor_ids:
                 self._known_sensors.clear()
             else:
-                self._known_sensors.intersection_update(info.states.keys())
+                self._known_sensors.intersection_update(sensor_ids)
                 new_sensors = [
                     sensor_id
-                    for sensor_id in info.states
+                    for sensor_id in sensor_ids
                     if sensor_id not in self._known_sensors
                 ]
                 if new_sensors:
@@ -512,16 +662,27 @@ class IpmiServer:
         self._known_sensors.add(sensor_id)
 
     def _chassis_command(self, addon_path: str, rmcp_command: int) -> None:
-        """Run chassis control via addon when possible, else RMCP."""
+        """Run chassis control via addon when possible, else RMCP.
+
+        Raises:
+            IpmiChassisCommandError: When the command fails on all available backends.
+        """
+        _LOGGER.info(
+            "Sending chassis command %s to %s (%s)",
+            addon_path,
+            self.name,
+            self._host,
+        )
         if self._should_try_addon() and self._run_addon_action(addon_path):
+            _LOGGER.info("Chassis command %s succeeded via addon", addon_path)
             return
-        if self._should_try_rmcp():
-            self.run_rmcp_command(rmcp_command)
-        else:
-            _LOGGER.error(
-                "Chassis command %s failed and RMCP is disabled by backend preference",
-                addon_path,
+        if not self._should_try_rmcp():
+            raise IpmiChassisCommandError(
+                f"Chassis command {addon_path} failed and RMCP is disabled by "
+                f"backend preference '{self._backend_preference}'"
             )
+        self.run_rmcp_command(rmcp_command)
+        _LOGGER.info("Chassis command %s succeeded via RMCP", addon_path)
 
     def power_on(self) -> None:
         """Power up the chassis."""

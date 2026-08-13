@@ -43,9 +43,14 @@ async def async_get_config_entry_diagnostics(
             "backend_preference": getattr(
                 data, "_backend_preference", DEFAULT_BACKEND_PREFERENCE
             ),
+            "sensor_types_poll": list(getattr(data, "_sensor_types", [])),
+            "power_only_poll": data._power_only_poll(),
             "auth_failed": data.auth_failed,
             "addon_url": data._addon_url,
             "addon_use_post": data._addon_use_post,
+            "addon_version": data.addon_version,
+            "addon_api_version": getattr(data, "_addon_api_version", None),
+            "addon_capabilities": sorted(data.addon_capabilities),
             "host": data._host,
             "port": data._port,
             "last_rmcp_error": data._last_rmcp_error,

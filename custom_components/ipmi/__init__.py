@@ -30,11 +30,17 @@ from .const import (
     CONF_IPMI_SERVER_HOST,
     CONF_KG_KEY,
     CONF_PRIVILEGE_LEVEL,
+    CONF_CREATE_ENERGY_SENSORS,
+    CONF_MINIMAL_IPMI,
+    CONF_POWER_OFF_DELAY,
     CONF_SENSOR_TYPES,
+    DEFAULT_MINIMAL_IPMI,
+    DEFAULT_POWER_OFF_DELAY,
     COORDINATOR,
     DEFAULT_BACKEND_PREFERENCE,
     DEFAULT_KG_KEY,
     DEFAULT_PRIVILEGE_LEVEL,
+    DEFAULT_CREATE_ENERGY_SENSORS,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_SENSOR_TYPES,
     DEFAULT_TIMEOUT,
@@ -50,7 +56,7 @@ from .const import (
 )
 from .helpers import IpmiData, get_ipmi_data, get_ipmi_server
 from .server import IpmiDeviceInfo, IpmiServer
-from .util import as_str_list, format_entry_unique_id
+from .util import as_str_list, effective_sensor_types, format_entry_unique_id, normalize_options
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -91,7 +97,13 @@ def _normalize_options(options: dict) -> dict:
     if CONF_BACKEND_PREFERENCE not in new_options:
         # auto = historical addon-first then RMCP behavior
         new_options[CONF_BACKEND_PREFERENCE] = DEFAULT_BACKEND_PREFERENCE
-    return new_options
+    if CONF_CREATE_ENERGY_SENSORS not in new_options:
+        new_options[CONF_CREATE_ENERGY_SENSORS] = DEFAULT_CREATE_ENERGY_SENSORS
+    if CONF_POWER_OFF_DELAY not in new_options:
+        new_options[CONF_POWER_OFF_DELAY] = DEFAULT_POWER_OFF_DELAY
+    if CONF_MINIMAL_IPMI not in new_options:
+        new_options[CONF_MINIMAL_IPMI] = DEFAULT_MINIMAL_IPMI
+    return normalize_options(new_options)
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
@@ -153,6 +165,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     backend_preference = options.get(
         CONF_BACKEND_PREFERENCE, DEFAULT_BACKEND_PREFERENCE
     )
+    sensor_types = effective_sensor_types(options, default_types=DEFAULT_SENSOR_TYPES)
 
     data = IpmiServer(
         hass,
@@ -173,6 +186,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             "addon_extra_params": config.get(CONF_ADDON_PARAMS),
             CONF_IGNORE_CHECKSUM_ERRORS: config.get(CONF_IGNORE_CHECKSUM_ERRORS, False),
             "backend_preference": backend_preference,
+            CONF_SENSOR_TYPES: sensor_types,
+            CONF_MINIMAL_IPMI: options.get(CONF_MINIMAL_IPMI, DEFAULT_MINIMAL_IPMI),
         },
     )
     coordinator = IpmiCoordinator(hass, scan_interval, data)
@@ -288,6 +303,39 @@ async def async_migrate_entry(hass, config_entry: ConfigEntry):
         new_options = _normalize_options(dict(config_entry.options))
         hass.config_entries.async_update_entry(
             config_entry, options=new_options, minor_version=5, version=2
+        )
+
+    # Migrate to version 2.6 - optional energy sensors option (additive default)
+    if config_entry.version == 2 and config_entry.minor_version < 6:
+        new_options = _normalize_options(dict(config_entry.options))
+        hass.config_entries.async_update_entry(
+            config_entry, options=new_options, minor_version=6, version=2
+        )
+
+    # Migrate to version 2.7 - enable energy sensors by default
+    if config_entry.version == 2 and config_entry.minor_version < 7:
+        new_options = _normalize_options(dict(config_entry.options))
+        new_options[CONF_CREATE_ENERGY_SENSORS] = DEFAULT_CREATE_ENERGY_SENSORS
+        hass.config_entries.async_update_entry(
+            config_entry, options=new_options, minor_version=7, version=2
+        )
+
+    # Migrate to version 2.8 - minimal IPMI option (additive default)
+    if config_entry.version == 2 and config_entry.minor_version < 8:
+        new_options = _normalize_options(dict(config_entry.options))
+        hass.config_entries.async_update_entry(
+            config_entry, options=new_options, minor_version=8, version=2
+        )
+
+    # Migrate to version 2.9 - legacy minimal_ipmi becomes empty sensor_types
+    if config_entry.version == 2 and config_entry.minor_version < 9:
+        new_options = _normalize_options(dict(config_entry.options))
+        if new_options.get(CONF_MINIMAL_IPMI):
+            new_options[CONF_SENSOR_TYPES] = []
+            new_options[CONF_CREATE_ENERGY_SENSORS] = False
+        new_options[CONF_MINIMAL_IPMI] = False
+        hass.config_entries.async_update_entry(
+            config_entry, options=new_options, minor_version=9, version=2
         )
 
     _LOGGER.debug(

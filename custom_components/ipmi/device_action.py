@@ -10,7 +10,7 @@ import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.typing import ConfigType, TemplateVarsType
 
 from . import IpmiServer
-from .helpers import get_ipmi_server
+from .helpers import async_run_chassis_command, get_ipmi_server
 from .const import (
     DOMAIN,
     INTEGRATION_SUPPORTED_COMMANDS,
@@ -56,8 +56,7 @@ async def async_call_action_from_config(
     data: IpmiServer =  get_ipmi_server(hass, entry_id)[IPMI_DATA]
 
     command = getattr(data, device_action_name)
-    # command()
-    await hass.async_add_executor_job(command)
+    await async_run_chassis_command(hass, command)
 
 def _get_entry_id_from_device_id(hass: HomeAssistant, device_id: str) -> str | None:
     device_registry = dr.async_get(hass)

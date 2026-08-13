@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import logging
 import re
+from collections.abc import Callable
+from datetime import datetime, timedelta
 from typing import Any
 
 from homeassistant.components.switch import (
@@ -9,16 +11,20 @@ from homeassistant.components.switch import (
     SwitchEntityDescription,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.event import async_track_point_in_time
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
     DataUpdateCoordinator,
 )
+from homeassistant.util import dt as dt_util
 
-from .helpers import device_info_from_ipmi_server, get_ipmi_server
+from .helpers import async_run_chassis_command, device_info_from_ipmi_server, get_ipmi_server
 from .const import (
+    CONF_POWER_OFF_DELAY,
     COORDINATOR,
+    DEFAULT_POWER_OFF_DELAY,
     DOMAIN,
     IPMI_DATA,
     IPMI_UNIQUE_ID,
@@ -52,6 +58,7 @@ async def async_setup_entry(
             ),
             data,
             unique_id,
+            config_entry,
         )
     )
 
@@ -68,10 +75,14 @@ class IpmiSwitch(CoordinatorEntity[DataUpdateCoordinator[dict[str, str]]], Switc
         switch_description: SwitchEntityDescription,
         data: IpmiServer,
         unique_id: str,
+        config_entry: ConfigEntry,
     ) -> None:
         """Initialize the switch."""
         super().__init__(coordinator)
         self.entity_description = switch_description
+        self._config_entry = config_entry
+        self._pending_off_until: datetime | None = None
+        self._unsub_pending_off: Callable[[], None] | None = None
 
         # unique_id / entity_id scheme kept for BC
         id_suffix = f"{data._alias}_{switch_description.key}"
@@ -83,17 +94,64 @@ class IpmiSwitch(CoordinatorEntity[DataUpdateCoordinator[dict[str, str]]], Switc
         self.ipmi_data = data
 
     @property
+    def _power_off_delay(self) -> int:
+        """Seconds to keep the switch off after a soft shutdown request."""
+        return int(
+            self._config_entry.options.get(
+                CONF_POWER_OFF_DELAY, DEFAULT_POWER_OFF_DELAY
+            )
+        )
+
+    @property
     def is_on(self) -> bool:
         """If switch is on."""
+        if self._pending_off_until and dt_util.utcnow() < self._pending_off_until:
+            return False
         status = self.coordinator.data
         return bool(status.power_on)
 
+    def _clear_pending_off(self) -> None:
+        """Cancel any active post-shutdown display hold."""
+        self._pending_off_until = None
+        if self._unsub_pending_off is not None:
+            self._unsub_pending_off()
+            self._unsub_pending_off = None
+
+    def _start_pending_off(self) -> None:
+        """Hold the switch off while the host finishes shutting down."""
+        delay = self._power_off_delay
+        if delay <= 0:
+            return
+
+        self._clear_pending_off()
+        self._pending_off_until = dt_util.utcnow() + timedelta(seconds=delay)
+
+        @callback
+        def _pending_off_expired(_now: datetime) -> None:
+            self._pending_off_until = None
+            self._unsub_pending_off = None
+            self.async_write_ha_state()
+            self.hass.async_create_task(self.coordinator.async_request_refresh())
+
+        self._unsub_pending_off = async_track_point_in_time(
+            self.hass, _pending_off_expired, self._pending_off_until
+        )
+
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on relay."""
-        await self.hass.async_add_executor_job(self.ipmi_data.power_on)
+        self._clear_pending_off()
+        await async_run_chassis_command(self.hass, self.ipmi_data.power_on)
         await self.coordinator.async_request_refresh()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn off relay."""
-        await self.hass.async_add_executor_job(self.ipmi_data.soft_shutdown)
-        await self.coordinator.async_request_refresh()
+        await async_run_chassis_command(self.hass, self.ipmi_data.soft_shutdown)
+        self._start_pending_off()
+        self.async_write_ha_state()
+        if self._power_off_delay <= 0:
+            await self.coordinator.async_request_refresh()
+
+    async def async_will_remove_from_hass(self) -> None:
+        """Run when entity is removed."""
+        self._clear_pending_off()
+        await super().async_will_remove_from_hass()

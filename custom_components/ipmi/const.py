@@ -97,6 +97,16 @@ CONF_SENSOR_TYPES = "sensor_types"
 # Missing options = today's behavior: discover all types.
 DEFAULT_SENSOR_TYPES = list(SENSOR_TYPES)
 
+# Optional companion energy (kWh) sensors derived from discovered power sensors.
+CONF_CREATE_ENERGY_SENSORS = "create_energy_sensors"
+DEFAULT_CREATE_ENERGY_SENSORS = True
+ENERGY_SENSOR_KEY_SUFFIX = "_energy"
+
+# Keep the power switch off after soft shutdown while the OS is still stopping.
+CONF_POWER_OFF_DELAY = "power_off_delay"
+DEFAULT_POWER_OFF_DELAY = 60
+MAX_POWER_OFF_DELAY = 600
+
 # Connection backend preference (options). Default "auto" preserves addon-first fallback.
 CONF_BACKEND_PREFERENCE = "backend_preference"
 BACKEND_PREFERENCE_AUTO = "auto"
@@ -112,4 +122,13 @@ BACKEND_PREFERENCES = [
 # After this many consecutive addon transport failures, briefly skip probing (auto mode).
 ADDON_FAILURE_SKIP_THRESHOLD = 3
 ADDON_SKIP_SECONDS = 300
+
+# Addon HTTP API capability names (reported by ipmi-server 2.6+ in JSON or GET /meta).
+ADDON_CAPABILITY_SENSOR_TYPES_FILTER = "sensor_types_filter"
+ADDON_CAPABILITY_RESILIENT_POLL = "resilient_poll"
+ADDON_META_PATH = "meta"
+
+# Legacy option: prefer empty sensor_types (kept for config entry downgrade compatibility).
+CONF_MINIMAL_IPMI = "minimal_ipmi"
+DEFAULT_MINIMAL_IPMI = False
 

@@ -24,12 +24,12 @@
         "data_description": {
           "host": "BMC hostname or IP address",
           "port": "IPMI / RMCP port (usually 623)",
-          "advanced": "Addon URL, interface, Kg key, privilege level, FRU checksum, and sensor filters"
+          "advanced": "Addon URL, interface, Kg key, privilege level, sensor filters, and connection backend"
         }
       },
       "advanced": {
         "title": "Advanced IPMI settings",
-        "description": "Defaults work for most setups. Use the addon host/port when the ipmi-server addon or standalone container is available. Sensor filters apply to newly discovered sensors.",
+        "description": "Addon and connection settings. Sensor filters are on the next step.",
         "data": {
           "kg_key": "Kg Encryption Key (hex, max 40 chars)",
           "privilege_level": "Privilege Level",
@@ -37,8 +37,6 @@
           "addon_port": "ipmi-server port",
           "addon_interface": "ipmitool interface",
           "addon_extra_params": "Extra ipmitool parameters",
-          "ignore_checksum_errors": "Ignore FRU checksum errors",
-          "sensor_types": "Sensor types to discover",
           "backend_preference": "Connection backend preference"
         },
         "data_description": {
@@ -46,8 +44,20 @@
           "ipmi_server_host": "On Home Assistant OS use the addon hostname, not localhost.",
           "addon_interface": "Usually lanplus. Use auto to let ipmitool decide.",
           "addon_extra_params": "Optional raw ipmitool arguments (for example cipher suite).",
-          "sensor_types": "Only selected types are created for newly discovered sensors. Defaults match previous behavior (all types).",
-          "backend_preference": "auto = try addon first then RMCP (historical default). addon = addon only. rmcp = python-ipmi only (skips addon probes). Warning: the send_command service requires the addon and will not work with rmcp."
+          "backend_preference": "auto = try addon first then RMCP (historical default). rmcp = python-ipmi only (skips addon probes). Warning: the send_command service requires the addon and will not work with rmcp."
+        }
+      },
+      "advanced_extras": {
+        "title": "Sensor filters",
+        "description": "Optional sensor discovery settings. Clear all types for power status and chassis controls only (requires ipmi-server 2.6+ for BMC polling).",
+        "data": {
+          "ignore_checksum_errors": "Ignore FRU checksum errors",
+          "sensor_types": "Sensor types to discover",
+          "create_energy_sensors": "Create energy sensors from power readings"
+        },
+        "data_description": {
+          "sensor_types": "Only selected types are created for newly discovered sensors. Leave empty for power-only monitoring on limited BMCs (for example Sipeed NanoKVM).",
+          "create_energy_sensors": "Requires power in sensor types. Each discovered power sensor also gets a kWh energy sensor for the Energy dashboard (enabled by default)."
         }
       },
       "reconfigure": {
@@ -64,7 +74,7 @@
       },
       "reconfigure_advanced": {
         "title": "Advanced IPMI settings",
-        "description": "Defaults work for most setups. Use the addon host/port when the ipmi-server addon or standalone container is available. Sensor filters apply to newly discovered sensors.",
+        "description": "Addon and connection settings. Sensor filters are on the next step unless Minimal IPMI was enabled on the previous screen.",
         "data": {
           "kg_key": "Kg Encryption Key (hex, max 40 chars)",
           "privilege_level": "Privilege Level",
@@ -72,17 +82,23 @@
           "addon_port": "ipmi-server port",
           "addon_interface": "ipmitool interface",
           "addon_extra_params": "Extra ipmitool parameters",
-          "ignore_checksum_errors": "Ignore FRU checksum errors",
-          "sensor_types": "Sensor types to discover",
           "backend_preference": "Connection backend preference"
         },
         "data_description": {
-          "kg_key": "Optional. Requires the ipmi-server addon; not supported by the python-ipmi fallback.",
-          "ipmi_server_host": "On Home Assistant OS use the addon hostname, not localhost.",
-          "addon_interface": "Usually lanplus. Use auto to let ipmitool decide.",
-          "addon_extra_params": "Optional raw ipmitool arguments (for example cipher suite).",
-          "sensor_types": "Only selected types are created for newly discovered sensors. Defaults match previous behavior (all types).",
-          "backend_preference": "auto = try addon first then RMCP (historical default). addon = addon only. rmcp = python-ipmi only (skips addon probes). Warning: the send_command service requires the addon and will not work with rmcp."
+          "backend_preference": "auto = try addon first then RMCP (historical default). rmcp = python-ipmi only (skips addon probes). Warning: the send_command service requires the addon and will not work with rmcp."
+        }
+      },
+      "reconfigure_advanced_extras": {
+        "title": "Sensor filters",
+        "description": "Optional sensor discovery settings. Not used when Minimal IPMI is enabled.",
+        "data": {
+          "ignore_checksum_errors": "Ignore FRU checksum errors",
+          "sensor_types": "Sensor types to discover",
+          "create_energy_sensors": "Create energy sensors from power readings"
+        },
+        "data_description": {
+          "sensor_types": "Only selected types are created for newly discovered sensors. Leave empty for power-only monitoring on limited BMCs (for example Sipeed NanoKVM).",
+          "create_energy_sensors": "Requires power in sensor types. Each discovered power sensor also gets a kWh energy sensor for the Energy dashboard (enabled by default)."
         }
       },
       "reauth_confirm": {
@@ -145,11 +161,15 @@
         "data": {
           "scan_interval": "Scan Interval (seconds)",
           "sensor_types": "Sensor types to discover",
-          "backend_preference": "Connection backend preference"
+          "backend_preference": "Connection backend preference",
+          "create_energy_sensors": "Create energy sensors from power readings",
+          "power_off_delay": "Power switch off delay (seconds)"
         },
         "data_description": {
-          "sensor_types": "Only selected types are created for newly discovered sensors. Defaults match previous behavior (all types).",
-          "backend_preference": "auto = try addon first then RMCP (historical default). addon = addon only. rmcp = python-ipmi only (skips addon probes). Warning: the send_command service requires the addon and will not work with rmcp."
+          "sensor_types": "Only selected types are created for newly discovered sensors. Leave empty for power-only monitoring on limited BMCs (for example Sipeed NanoKVM).",
+          "backend_preference": "auto = try addon first then RMCP (historical default). addon = addon only. rmcp = python-ipmi only (skips addon probes). Warning: the send_command service requires the addon and will not work with rmcp.",
+          "create_energy_sensors": "Requires power in sensor types. Each discovered power sensor also gets a kWh energy sensor for the Energy dashboard (enabled by default). Energy entities are unavailable when power is not monitored, this option is off, or the power sensor entity is disabled.",
+          "power_off_delay": "After soft shutdown, keep the power switch off for this many seconds even if the BMC still reports power on. 0 disables (switch follows live BMC state immediately). Does not affect the State sensor."
         }
       },
       "rmcp_warning": {

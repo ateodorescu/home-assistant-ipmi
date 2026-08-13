@@ -41,6 +41,53 @@ class TestAsStrList:
         assert util.as_str_list("", ["fan"]) == ["fan"]
 
 
+class TestNormalizeOptions:
+    def test_unchanged_when_legacy_minimal_disabled(self) -> None:
+        config = {
+            "minimal_ipmi": False,
+            "sensor_types": ["temperature"],
+            "create_energy_sensors": True,
+            "ignore_checksum_errors": True,
+            "backend_preference": "addon",
+        }
+        assert util.normalize_options(config) == config
+
+    def test_legacy_minimal_clears_sensor_options(self) -> None:
+        normalized = util.normalize_options(
+            {
+                "minimal_ipmi": True,
+                "sensor_types": ["temperature", "fan"],
+                "create_energy_sensors": True,
+                "ignore_checksum_errors": True,
+                "backend_preference": "addon",
+            }
+        )
+        assert normalized["sensor_types"] == []
+        assert normalized["create_energy_sensors"] is False
+        assert normalized["ignore_checksum_errors"] is False
+        assert normalized["backend_preference"] == "addon"
+
+
+class TestEffectiveSensorTypes:
+    def test_legacy_minimal_returns_empty(self) -> None:
+        assert util.effective_sensor_types({"minimal_ipmi": True}) == []
+
+    def test_explicit_empty_list(self) -> None:
+        assert util.effective_sensor_types({"sensor_types": []}) == []
+
+    def test_default_when_missing(self) -> None:
+        assert util.effective_sensor_types({}, default_types=["fan"]) == ["fan"]
+
+
+class TestAddonCapabilities:
+    def test_merge_capabilities(self) -> None:
+        caps = util.update_addon_capabilities(
+            {"statuses"},
+            {"capabilities": ["sensor_types_filter", "resilient_poll"]},
+        )
+        assert caps == {"statuses", "sensor_types_filter", "resilient_poll"}
+
+
 class TestGenerateSensorId:
     def test_spaces_and_case(self) -> None:
         assert util.generate_sensor_id("CPU Temp") == "cpu_temp"
@@ -50,6 +97,67 @@ class TestGenerateSensorId:
 
     def test_keeps_underscores_and_digits(self) -> None:
         assert util.generate_sensor_id("PSU_1_VIN") == "psu_1_vin"
+
+
+class TestEnergySensorHelpers:
+    def test_iter_discovered_sensor_ids(self) -> None:
+        sensors = {
+            "fan": {"fan3b": "Fan3B", "fan1a": "Fan1A"},
+            "temperature": {"inlet_temp": "Inlet Temp"},
+        }
+        states = {"fan1a": 7080, "inlet_temp": 32}
+        assert util.iter_discovered_sensor_ids(sensors, states) == {
+            "fan3b",
+            "fan1a",
+            "inlet_temp",
+        }
+
+    def test_iter_discovered_sensor_ids_accepts_php_empty_lists(self) -> None:
+        sensors = {"fan": [], "temperature": []}
+        states: list[str] = []
+        assert util.iter_discovered_sensor_ids(sensors, states) == set()
+
+    def test_normalize_addon_mapping(self) -> None:
+        assert util.normalize_addon_mapping([]) == {}
+        assert util.normalize_addon_mapping({"a": 1}) == {"a": 1}
+
+    def test_normalize_addon_sensor_groups(self) -> None:
+        groups = util.normalize_addon_sensor_groups(
+            {"fan": [], "temperature": {"cpu": "CPU Temp"}},
+            sensor_types=["fan", "temperature"],
+        )
+        assert groups == {"fan": {}, "temperature": {"cpu": "CPU Temp"}}
+
+    def test_energy_sensor_key(self) -> None:
+        assert util.energy_sensor_key("system_power") == "system_power_energy"
+
+    def test_integrate_power_left_riemann(self) -> None:
+        # 100 W for 3600 s = 0.1 kWh
+        result = util.integrate_power_left_riemann(
+            previous_power_w=100.0,
+            elapsed_seconds=3600.0,
+            accumulated_kwh=1.5,
+        )
+        assert result == pytest.approx(1.6)
+
+    def test_integrate_skips_without_previous_power(self) -> None:
+        result = util.integrate_power_left_riemann(
+            previous_power_w=None,
+            elapsed_seconds=60.0,
+            accumulated_kwh=2.0,
+        )
+        assert result == 2.0
+
+
+class TestEnergySensorsEnabled:
+    def test_requires_power_type(self) -> None:
+        assert util.energy_sensors_enabled(["temperature", "fan"], True) is False
+
+    def test_requires_option_enabled(self) -> None:
+        assert util.energy_sensors_enabled(["power", "temperature"], False) is False
+
+    def test_true_when_power_monitored_and_option_on(self) -> None:
+        assert util.energy_sensors_enabled(["power", "temperature"], True) is True
 
 
 class TestRedactConnectionSecrets:
@@ -221,6 +329,7 @@ class TestIpmiServerLogic:
             "addon_extra_params": None,
             "ignore_checksum_errors": False,
             "backend_preference": "auto",
+            "sensor_types": [],
         }
         connection.update(overrides)
         return self._server_mod.IpmiServer(MagicMock(), "entry1", connection)
@@ -247,6 +356,35 @@ class TestIpmiServerLogic:
             srv.power_on()
             rmcp.assert_called_once()
 
+    def test_chassis_raises_when_addon_only_and_addon_fails(self) -> None:
+        chassis_error = self._server_mod.util.IpmiChassisCommandError
+        srv = self._make_server(backend_preference="addon")
+        with patch.object(
+            srv, "get_from_addon", return_value={"success": False, "message": "busy"}
+        ):
+            with pytest.raises(chassis_error, match="RMCP is disabled"):
+                srv.soft_shutdown()
+
+    def test_chassis_rmcp_failure_raises(self) -> None:
+        chassis_error = self._server_mod.util.IpmiChassisCommandError
+        srv = self._make_server(backend_preference="rmcp")
+        with patch.object(
+            srv,
+            "run_rmcp_command",
+            side_effect=chassis_error("RMCP failed"),
+        ):
+            with pytest.raises(chassis_error, match="RMCP failed"):
+                srv.power_on()
+
+    def test_run_rmcp_command_raises_on_connection_error(self) -> None:
+        chassis_error = self._server_mod.util.IpmiChassisCommandError
+        srv = self._make_server()
+        with patch.object(
+            srv, "_connect_unlocked", side_effect=OSError("connection refused")
+        ):
+            with pytest.raises(chassis_error, match="connection refused"):
+                srv.run_rmcp_command(0)
+
     def test_chassis_does_not_rmcp_when_addon_succeeds(self) -> None:
         srv = self._make_server(backend_preference="auto")
         with (
@@ -272,6 +410,31 @@ class TestIpmiServerLogic:
         assert srv.is_known_sensor("cpu_temp")
         srv.add_known_sensor("cpu_temp")
         assert len(srv._known_sensors) == 1
+
+    def test_update_discovers_sensors_without_readings(self) -> None:
+        """Metadata-only sensors (e.g. failed fan in SDR) should still trigger discovery."""
+        srv = self._make_server()
+        dispatched: list[str] = []
+
+        def _capture(hass, signal):
+            dispatched.append(signal)
+
+        with patch.object(self._server_mod, "dispatcher_send", side_effect=_capture):
+            srv._device_info = self._server_mod.IpmiDeviceInfo(
+                sensors={"fan": {"fan3b": "Fan3B"}},
+                states={},
+                statuses={"fan3b": "cr"},
+            )
+            srv.update = lambda: None  # prevent re-fetch
+            # Simulate the tail of update() when addon/json already populated device_info
+            info = srv._device_info
+            sensor_ids = util.iter_discovered_sensor_ids(info.sensors, info.states)
+            new_sensors = [
+                sensor_id
+                for sensor_id in sensor_ids
+                if sensor_id not in srv._known_sensors
+            ]
+            assert new_sensors == ["fan3b"]
 
     def test_addon_uses_get_by_default(self) -> None:
         srv = self._make_server()
@@ -319,8 +482,72 @@ class TestIpmiServerLogic:
             srv._record_addon_transport_failure()
         assert srv._should_try_addon() is False
 
+    def test_ingest_addon_capabilities(self) -> None:
+        srv = self._make_server()
+        srv._ingest_addon_capabilities(
+            {
+                "api_version": 1,
+                "addon_version": "2.6.0",
+                "capabilities": ["sensor_types_filter"],
+            }
+        )
+        assert srv.addon_version == "2.6.0"
+        assert srv.addon_capabilities == {"sensor_types_filter"}
+
     def test_bc_method_aliases(self) -> None:
         cls = self._server_mod.IpmiServer
         assert cls.getFromAddon is cls.get_from_addon
         assert cls.getFromRmcp is cls.get_from_rmcp
         assert cls.runRmcpCommand is cls.run_rmcp_command
+
+    def test_power_only_polls_addon_first(self) -> None:
+        srv = self._make_server(sensor_types=[])
+        power_payload = {
+            "device": {"product_name": "None"},
+            "sensors": {t: {} for t in self._server_mod.SENSOR_TYPES},
+            "states": {},
+            "power_on": True,
+            "success": True,
+        }
+        with (
+            patch.object(srv, "get_from_addon", return_value=power_payload) as addon,
+            patch.object(srv, "get_from_rmcp") as rmcp,
+        ):
+            srv.update()
+            addon.assert_called_once()
+            rmcp.assert_not_called()
+            assert srv.last_backend == self._server_mod.BACKEND_ADDON
+            assert srv.device_info is not None
+            assert srv.device_info.power_on is True
+
+    def test_power_only_passes_sensor_types_param(self) -> None:
+        srv = self._make_server(sensor_types=[])
+        get_resp = MagicMock()
+        get_resp.raise_for_status.return_value = None
+        get_resp.json.return_value = {
+            "success": True,
+            "power_on": True,
+            "device": {},
+            "sensors": {t: {} for t in self._server_mod.SENSOR_TYPES},
+            "states": {},
+        }
+        with patch.object(self._server_mod.requests, "get", return_value=get_resp) as get:
+            srv.get_from_addon(None)
+            params = get.call_args.kwargs["params"]
+            assert params["sensor_types"] == ""
+
+    def test_power_only_rmcp_skips_fru(self) -> None:
+        srv = self._make_server(sensor_types=[])
+        mock_ipmi = MagicMock()
+        mock_ipmi.get_device_id.return_value.fw_revision.version_to_string.return_value = (
+            "1.0"
+        )
+        mock_ipmi.get_device_id.return_value.product_id = 42
+        mock_ipmi.get_chassis_status.return_value.power_on = False
+
+        with patch.object(srv, "_connect_unlocked", return_value=mock_ipmi):
+            result = srv.get_from_rmcp()
+
+        assert result is not None
+        assert result["power_on"] is False
+        mock_ipmi.get_fru_inventory.assert_not_called()

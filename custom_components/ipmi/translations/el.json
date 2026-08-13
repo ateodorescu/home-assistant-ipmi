@@ -24,7 +24,7 @@
         "data_description": {
           "host": "Όνομα υπολογιστή ή διεύθυνση IP του BMC",
           "port": "Θύρα IPMI / RMCP (συνήθως 623)",
-          "advanced": "URL addon, διεπαφή, κλειδί Kg, επίπεδο προνομίων και ρυθμίσεις αθροίσματος ελέγχου FRU"
+          "advanced": "URL addon, διεπαφή, κλειδί Kg, επίπεδο προνομίων, FRU, φίλτρα αισθητήρων και minimal IPMI"
         }
       },
       "advanced": {
@@ -39,7 +39,9 @@
           "addon_extra_params": "Επιπλέον παράμετροι ipmitool",
           "ignore_checksum_errors": "Αγνόηση σφαλμάτων αθροίσματος ελέγχου FRU",
           "sensor_types": "Τύποι αισθητήρων προς ανακάλυψη",
-          "backend_preference": "Προτίμηση backend σύνδεσης"
+          "backend_preference": "Προτίμηση backend σύνδεσης",
+          "create_energy_sensors": "Δημιουργία αισθητήρων ενέργειας από μετρήσεις ισχύος",
+          "minimal_ipmi": "Minimal IPMI (μόνο τροφοδοσία)"
         },
         "data_description": {
           "kg_key": "Προαιρετικό. Απαιτεί το addon ipmi-server· δεν υποστηρίζεται από το python-ipmi fallback.",
@@ -47,7 +49,9 @@
           "addon_interface": "Συνήθως lanplus. Το auto αφήνει το ipmitool να αποφασίσει.",
           "addon_extra_params": "Προαιρετικά ορίσματα ipmitool (π.χ. cipher suite).",
           "sensor_types": "Μόνο οι επιλεγμένοι τύποι δημιουργούνται για νέους αισθητήρες. Η προεπιλογή αντιστοιχεί στην προηγούμενη συμπεριφορά (όλοι οι τύποι).",
-          "backend_preference": "auto = πρώτα addon μετά RMCP (ιστορική προεπιλογή). addon = μόνο addon. rmcp = μόνο python-ipmi (χωρίς δοκιμές addon). Προειδοποίηση: η υπηρεσία send_command απαιτεί το addon και δεν λειτουργεί με rmcp."
+          "backend_preference": "auto = πρώτα addon μετά RMCP (ιστορική προεπιλογή). addon = μόνο addon. rmcp = μόνο python-ipmi (χωρίς δοκιμές addon). Προειδοποίηση: η υπηρεσία send_command απαιτεί το addon και δεν λειτουργεί με rmcp.",
+          "create_energy_sensors": "Απαιτεί ισχύ στους τύπους αισθητήρων. Κάθε αισθητήρας ισχύος λαμβάνει kWh ενέργειας (ενεργό από προεπιλογή).",
+          "minimal_ipmi": "Για BMC με περιορισμένο σύνολο εντολών (π.χ. Sipeed NanoKVM). Παραλείπει FRU και αισθητήρες· μόνο κατάσταση τροφοδοσίας και έλεγχος chassis. Η κατάσταση διαβάζεται μέσω python-ipmi (RMCP), όχι μέσω πλήρους addon poll."
         }
       },
       "reconfigure": {
@@ -74,7 +78,9 @@
           "addon_extra_params": "Επιπλέον παράμετροι ipmitool",
           "ignore_checksum_errors": "Αγνόηση σφαλμάτων αθροίσματος ελέγχου FRU",
           "sensor_types": "Τύποι αισθητήρων προς ανακάλυψη",
-          "backend_preference": "Προτίμηση backend σύνδεσης"
+          "backend_preference": "Προτίμηση backend σύνδεσης",
+          "create_energy_sensors": "Δημιουργία αισθητήρων ενέργειας από μετρήσεις ισχύος",
+          "minimal_ipmi": "Minimal IPMI (μόνο τροφοδοσία)"
         },
         "data_description": {
           "kg_key": "Προαιρετικό. Απαιτεί το addon ipmi-server· δεν υποστηρίζεται από το python-ipmi fallback.",
@@ -82,7 +88,9 @@
           "addon_interface": "Συνήθως lanplus. Το auto αφήνει το ipmitool να αποφασίσει.",
           "addon_extra_params": "Προαιρετικά ορίσματα ipmitool (π.χ. cipher suite).",
           "sensor_types": "Μόνο οι επιλεγμένοι τύποι δημιουργούνται για νέους αισθητήρες. Η προεπιλογή αντιστοιχεί στην προηγούμενη συμπεριφορά (όλοι οι τύποι).",
-          "backend_preference": "auto = πρώτα addon μετά RMCP (ιστορική προεπιλογή). addon = μόνο addon. rmcp = μόνο python-ipmi (χωρίς δοκιμές addon). Προειδοποίηση: η υπηρεσία send_command απαιτεί το addon και δεν λειτουργεί με rmcp."
+          "backend_preference": "auto = πρώτα addon μετά RMCP (ιστορική προεπιλογή). addon = μόνο addon. rmcp = μόνο python-ipmi (χωρίς δοκιμές addon). Προειδοποίηση: η υπηρεσία send_command απαιτεί το addon και δεν λειτουργεί με rmcp.",
+          "create_energy_sensors": "Απαιτεί ισχύ στους τύπους αισθητήρων. Κάθε αισθητήρας ισχύος λαμβάνει kWh ενέργειας (ενεργό από προεπιλογή).",
+          "minimal_ipmi": "Για BMC με περιορισμένο σύνολο εντολών (π.χ. Sipeed NanoKVM). Παραλείπει FRU και αισθητήρες· μόνο κατάσταση τροφοδοσίας και έλεγχος chassis. Η κατάσταση διαβάζεται μέσω python-ipmi (RMCP), όχι μέσω πλήρους addon poll."
         }
       },
       "reauth_confirm": {
@@ -145,11 +153,17 @@
         "data": {
           "scan_interval": "Μεσοδιάστημα Σάρωσης (δευτερόλεπτα)",
           "sensor_types": "Τύποι αισθητήρων προς ανακάλυψη",
-          "backend_preference": "Προτίμηση backend σύνδεσης"
+          "backend_preference": "Προτίμηση backend σύνδεσης",
+          "create_energy_sensors": "Δημιουργία αισθητήρων ενέργειας από μετρήσεις ισχύος",
+          "minimal_ipmi": "Minimal IPMI (μόνο τροφοδοσία)",
+          "power_off_delay": "Καθυστέρηση διακόπτη απενεργοποίησης (δευτερόλεπτα)"
         },
         "data_description": {
           "sensor_types": "Μόνο οι επιλεγμένοι τύποι δημιουργούνται για νέους αισθητήρες. Η προεπιλογή αντιστοιχεί στην προηγούμενη συμπεριφορά (όλοι οι τύποι).",
-          "backend_preference": "auto = πρώτα addon μετά RMCP (ιστορική προεπιλογή). addon = μόνο addon. rmcp = μόνο python-ipmi (χωρίς δοκιμές addon). Προειδοποίηση: η υπηρεσία send_command απαιτεί το addon και δεν λειτουργεί με rmcp."
+          "backend_preference": "auto = πρώτα addon μετά RMCP (ιστορική προεπιλογή). addon = μόνο addon. rmcp = μόνο python-ipmi (χωρίς δοκιμές addon). Προειδοποίηση: η υπηρεσία send_command απαιτεί το addon και δεν λειτουργεί με rmcp.",
+          "create_energy_sensors": "Απαιτεί ισχύ στους τύπους αισθητήρων. Κάθε αισθητήρας ισχύος λαμβάνει kWh ενέργειας (ενεργό από προεπιλογή). Οι οντότητες ενέργειας είναι μη διαθέσιμες όταν η ισχύς δεν παρακολουθείται, η επιλογή είναι off ή ο αισθητήρας ισχύος είναι απενεργοποιημένος.",
+          "minimal_ipmi": "Για BMC με περιορισμένο σύνολο εντολών (π.χ. Sipeed NanoKVM). Παραλείπει FRU και αισθητήρες· μόνο κατάσταση τροφοδοσίας και έλεγχος chassis. Η κατάσταση διαβάζεται μέσω python-ipmi (RMCP), όχι μέσω πλήρους addon poll."
+          "power_off_delay": "Μετά από μαλακό shutdown, ο διακόπτης ισχύος παραμένει off για τόσα δευτερόλεπτα ακόμα κι αν το BMC αναφέρει ακόμα on. 0 = απενεργοποιημένο (ο διακόπτης ακολουθεί αμέσως το BMC). Δεν επηρεάζει τον αισθητήρα State."
         }
       },
       "rmcp_warning": {
