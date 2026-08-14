@@ -162,7 +162,7 @@
           "sensor_types": "Seuls les types sélectionnés sont créés pour les nouveaux capteurs. Par défaut, comportement précédent (tous les types).",
           "backend_preference": "auto = addon d'abord puis RMCP (comportement historique). addon = addon uniquement. rmcp = python-ipmi uniquement (sans sondage addon). Avertissement : le service send_command nécessite l'addon et ne fonctionne pas avec rmcp.",
           "create_energy_sensors": "Nécessite la puissance dans les types de capteurs. Chaque capteur de puissance reçoit un capteur d'énergie kWh (activé par défaut). Les entités énergie sont indisponibles si la puissance n'est pas surveillée, si l'option est désactivée ou si le capteur de puissance est désactivé.",
-          "minimal_ipmi": "Pour les BMC à jeu de commandes limité (par ex. Sipeed NanoKVM). Ignore FRU et capteurs ; statut d'alimentation et contrôles châssis uniquement. Interrogation via python-ipmi (RMCP), pas la requête complète de l'addon."
+          "minimal_ipmi": "Pour les BMC à jeu de commandes limité (par ex. Sipeed NanoKVM). Ignore FRU et capteurs ; statut d'alimentation et contrôles châssis uniquement. Interrogation via python-ipmi (RMCP), pas la requête complète de l'addon.",
           "power_off_delay": "Après un arrêt logiciel, l'interrupteur d'alimentation reste éteint pendant ce délai même si le BMC indique encore l'alimentation. 0 = désactivé (l'interrupteur suit immédiatement le BMC). N'affecte pas le capteur State."
         }
       },

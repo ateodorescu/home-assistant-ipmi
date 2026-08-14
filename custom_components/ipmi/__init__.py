@@ -17,7 +17,7 @@ from homeassistant.const import (
     CONF_USERNAME,
 )
 from homeassistant.core import HomeAssistant, ServiceCall, ServiceResponse, SupportsResponse
-from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import config_validation as cv, device_registry as dr
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
@@ -59,6 +59,8 @@ from .server import IpmiDeviceInfo, IpmiServer
 from .util import as_str_list, effective_sensor_types, format_entry_unique_id, normalize_options
 
 _LOGGER = logging.getLogger(__name__)
+
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 
 def _ensure_entry_unique_id(hass: HomeAssistant, entry: ConfigEntry) -> None:
