@@ -33,6 +33,9 @@ If the addon / standalone HTTP API is reachable it is used first; otherwise the 
 
 ## Installation
 
+[![GitHub downloads](https://img.shields.io/github/downloads/ateodorescu/home-assistant-ipmi/total)](https://github.com/ateodorescu/home-assistant-ipmi/releases)
+[![HA installs](https://img.shields.io/badge/dynamic/json?color=41BDF5&logo=home-assistant&label=installs&query=$.ipmi.total&url=https://analytics.home-assistant.io/custom_integrations.json)](https://analytics.home-assistant.io)
+
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=ateodorescu&repository=home-assistant-ipmi&category=integration)
 
 Install via [HACS](https://hacs.xyz) (button above), or copy the `custom_components` folder into your Home Assistant `config` folder.
