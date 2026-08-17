@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.22.1 — 2026-08-17
+
+### Fixed
+
+- hassfest: missing commas in Greek/French translation JSON and `CONFIG_SCHEMA` for config-entry-only setup
+
+### Changed
+
+- GitHub Actions: checkout and setup-python updated to Node 24 runtimes
+
 ## 1.22.0 — 2026-08-13
 
 ### Added
