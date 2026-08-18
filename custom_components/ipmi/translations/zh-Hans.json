@@ -1,0 +1,210 @@
+{
+  "config": {
+    "abort": {
+      "already_configured": "设备已配置",
+      "reconfigure_successful": "重新配置成功",
+      "reauth_successful": "重新认证成功"
+    },
+    "error": {
+      "cannot_connect": "连接失败",
+      "unknown": "非预期错误"
+    },
+    "step": {
+      "user": {
+        "title": "连接到 IPMI 服务器",
+        "description": "输入 BMC 连接详情。除非您需要插件、Kg 密钥或权限设置，否则请勿勾选高级选项。",
+        "data": {
+          "alias": "别名",
+          "host": "主机",
+          "password": "密码",
+          "port": "端口",
+          "username": "用户名",
+          "advanced": "配置高级选项"
+        },
+        "data_description": {
+          "host": "BMC 主机名或 IP 地址",
+          "port": "IPMI / RMCP 端口（通常为 623）",
+          "advanced": "插件 URL、接口、Kg 密钥、权限等级、传感器过滤器和连接后端"
+        }
+      },
+      "advanced": {
+        "title": "高级 IPMI 设置",
+        "description": "插件和连接设置。传感器过滤器将在下一步设置。",
+        "data": {
+          "kg_key": "Kg 加密密钥（十六进制，最多 40 个字符）",
+          "privilege_level": "权限等级",
+          "ipmi_server_host": "ipmi-server 主机",
+          "addon_port": "ipmi-server 端口",
+          "addon_interface": "ipmitool 接口",
+          "addon_extra_params": "额外的 ipmitool 参数",
+          "backend_preference": "连接后端偏好"
+        },
+        "data_description": {
+          "kg_key": "可选。需要 ipmi-server 插件支持；python-ipmi 后备模式不支持此项。",
+          "ipmi_server_host": "在 Home Assistant OS 上请使用插件主机名，而不是 localhost。",
+          "addon_interface": "通常为 lanplus。使用 auto 让 ipmitool 自动决定。",
+          "addon_extra_params": "可选的原始 ipmitool 参数（例如加密套件）。",
+          "backend_preference": "auto = 优先尝试插件，然后是 RMCP（历史默认值）。rmcp = 仅使用 python-ipmi（跳过插件探测）。警告：send_command 服务需要插件支持，在 rmcp 模式下无法工作。"
+        }
+      },
+      "advanced_extras": {
+        "title": "传感器过滤器",
+        "description": "可选的传感器发现设置。如果仅需要电源状态和机箱控制，请清除所有类型（BMC 轮询需要 ipmi-server 2.6+）。",
+        "data": {
+          "ignore_checksum_errors": "忽略 FRU 校验和错误",
+          "sensor_types": "要发现的传感器类型",
+          "create_energy_sensors": "根据功率读数创建能耗传感器"
+        },
+        "data_description": {
+          "sensor_types": "仅为新发现的传感器创建所选类型的实体。对于功能有限的 BMC（例如 Sipeed NanoKVM），请留空以仅进行电源监控。",
+          "create_energy_sensors": "需要在传感器类型中包含 power（功率）。每个发现的功率传感器还将获得一个用于能源仪表盘的 kWh 能耗传感器（默认启用）。"
+        }
+      },
+      "reconfigure": {
+        "title": "重新配置 IPMI 服务器",
+        "description": "更新此条目的 BMC 连接详情。",
+        "data": {
+          "alias": "别名",
+          "host": "主机",
+          "password": "密码",
+          "port": "端口",
+          "username": "用户名",
+          "advanced": "配置高级选项"
+        }
+      },
+      "reconfigure_advanced": {
+        "title": "高级 IPMI 设置",
+        "description": "插件和连接设置。除非在上一步启用了“极简 IPMI”，否则下一步将进行传感器过滤。",
+        "data": {
+          "kg_key": "Kg 加密密钥（十六进制，最多 40 个字符）",
+          "privilege_level": "权限等级",
+          "ipmi_server_host": "ipmi-server 主机",
+          "addon_port": "ipmi-server 端口",
+          "addon_interface": "ipmitool 接口",
+          "addon_extra_params": "额外的 ipmitool 参数",
+          "backend_preference": "连接后端偏好"
+        },
+        "data_description": {
+          "backend_preference": "auto = 优先尝试插件，然后是 RMCP（历史默认值）。rmcp = 仅使用 python-ipmi（跳过插件探测）。警告：send_command 服务需要插件支持，在 rmcp 模式下无法工作。"
+        }
+      },
+      "reconfigure_advanced_extras": {
+        "title": "传感器过滤器",
+        "description": "可选的传感器发现设置。启用“极简 IPMI”时不可用。",
+        "data": {
+          "ignore_checksum_errors": "忽略 FRU 校验和错误",
+          "sensor_types": "要发现的传感器类型",
+          "create_energy_sensors": "根据功率读数创建能耗传感器"
+        },
+        "data_description": {
+          "sensor_types": "仅为新发现的传感器创建所选类型的实体。对于功能有限的 BMC（例如 Sipeed NanoKVM），请留空以仅进行电源监控。",
+          "create_energy_sensors": "需要在传感器类型中包含 power（功率）。每个发现的功率传感器还将获得一个用于能源仪表盘的 kWh 能耗传感器（默认启用）。"
+        }
+      },
+      "reauth_confirm": {
+        "title": "重新认证 IPMI 服务器",
+        "description": "{host} 身份验证失败。请输入更新后的凭据。",
+        "data": {
+          "username": "用户名",
+          "password": "密码"
+        }
+      },
+      "rmcp_warning": {
+        "title": "仅 RMCP 模式",
+        "description": "您选择了 rmcp（仅限 python-ipmi）。自定义的 send_command 服务将无法工作——它需要 ipmi-server 插件或独立的 HTTP API。传感器和机箱电源控制仍可正常工作。点击提交继续，或点击返回选择 auto/addon。"
+      },
+      "reconfigure_rmcp_warning": {
+        "title": "仅 RMCP 模式",
+        "description": "您选择了 rmcp（仅限 python-ipmi）。自定义的 send_command 服务将无法工作——它需要 ipmi-server 插件或独立的 HTTP API。传感器和机箱电源控制仍可正常工作。点击提交继续，或点击返回选择 auto/addon。"
+      }
+    }
+  },
+  "entity": {
+    "switch": {
+      "chassis": {
+        "name": "开机/软关机"
+      }
+    },
+    "binary_sensor": {
+      "power": {
+        "name": "电源"
+      }
+    },
+    "button": {
+      "power_on": {
+        "name": "开机"
+      },
+      "power_off": {
+        "name": "关机"
+      },
+      "power_cycle": {
+        "name": "重启"
+      },
+      "power_reset": {
+        "name": "电源复位"
+      },
+      "soft_shutdown": {
+        "name": "软关机"
+      }
+    },
+    "sensor": {
+      "connection_backend": {
+        "name": "连接后端"
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "IPMI 选项",
+        "description": "过滤器仅适用于新发现的传感器。现有实体在启用某种类型并重新加载条目之前将保持不变。",
+        "data": {
+          "scan_interval": "扫描间隔（秒）",
+          "sensor_types": "要发现的传感器类型",
+          "backend_preference": "连接后端偏好",
+          "create_energy_sensors": "根据功率读数创建能耗传感器",
+          "power_off_delay": "电源开关关闭延迟（秒）"
+        },
+        "data_description": {
+          "sensor_types": "仅为新发现的传感器创建所选类型的实体。对于功能有限的 BMC（例如 Sipeed NanoKVM），请留空以仅进行电源监控。",
+          "backend_preference": "auto = 优先尝试插件，然后是 RMCP（历史默认值）。addon = 仅使用插件。rmcp = 仅使用 python-ipmi（跳过插件探测）。警告：send_command 服务需要插件支持，在 rmcp 模式下无法工作。",
+          "create_energy_sensors": "需要在传感器类型中包含 power（功率）。每个发现的功率传感器还将获得一个用于能源仪表盘的 kWh 能耗传感器（默认启用）。当不监控功率、此选项关闭或功率传感器实体被禁用时，能耗实体将不可用。",
+          "power_off_delay": "在软关机后，即使 BMC 仍报告电源开启，也让电源开关保持关闭状态指定的秒数。设置为 0 则禁用（开关立即跟随 BMC 实时状态）。不影响状态传感器。"
+        }
+      },
+      "rmcp_warning": {
+        "title": "仅 RMCP 模式",
+        "description": "您选择了 rmcp（仅限 python-ipmi）。自定义的 send_command 服务将无法工作——它需要 ipmi-server 插件或独立的 HTTP API。传感器和机箱电源控制仍可正常工作。点击提交继续，或点击返回选择 auto/addon。"
+      }
+    }
+  },
+  "device_automation": {
+    "action_type": {
+      "power_on": "开机",
+      "power_off": "关机",
+      "power_cycle": "重启",
+      "power_reset": "电源复位",
+      "soft_shutdown": "软关机"
+    }
+  },
+  "services": {
+    "send_command": {
+      "name": "发送自定义命令 👻",
+      "description": "仅通过 ipmi-server 插件或独立 HTTP API 发送自定义 ipmitool 风格的命令（在仅限 RMCP 的连接上不可用）。",
+      "fields": {
+        "server": {
+          "name": "服务器",
+          "description": "要发送命令的服务器"
+        },
+        "command": {
+          "name": "命令",
+          "description": "要发送的命令"
+        },
+        "ignore_errors": {
+          "name": "忽略错误",
+          "description": "发送命令时忽略错误。某些原始命令可能会返回错误，但实际上已执行成功。仅在您确切知道自己在做什么时使用此选项。"
+        }
+      }
+    }
+  }
+}
