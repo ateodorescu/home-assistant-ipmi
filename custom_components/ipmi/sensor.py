@@ -38,6 +38,7 @@ from homeassistant.helpers.dispatcher import (
     async_dispatcher_connect,
 )
 
+from .entity import IpmiCoordinatorEntity
 from .helpers import device_info_from_ipmi_server, get_ipmi_data, get_ipmi_server
 from .const import (
     CONF_CREATE_ENERGY_SENSORS,
@@ -269,7 +270,7 @@ def create_entity_sensors(
 
 
 class IpmiSensor(
-    CoordinatorEntity[DataUpdateCoordinator[dict[str, str]]], SensorEntity
+    IpmiCoordinatorEntity, SensorEntity
 ):
     """Representation of a sensor entity for IPMI status values."""
 
@@ -448,7 +449,7 @@ class IpmiEnergySensor(
 
 
 class IpmiConnectionBackendSensor(
-    CoordinatorEntity[DataUpdateCoordinator[dict[str, str]]], SensorEntity
+    IpmiCoordinatorEntity, SensorEntity
 ):
     """Diagnostic sensor showing whether addon or RMCP was used.
 
