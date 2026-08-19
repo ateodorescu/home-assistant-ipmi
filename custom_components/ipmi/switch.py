@@ -14,10 +14,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_point_in_time
-from homeassistant.helpers.update_coordinator import (
-    CoordinatorEntity,
-    DataUpdateCoordinator,
-)
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 
 from .helpers import async_run_chassis_command, device_info_from_ipmi_server, get_ipmi_server
@@ -29,6 +26,7 @@ from .const import (
     IPMI_DATA,
     IPMI_UNIQUE_ID,
 )
+from .entity import IpmiCoordinatorEntity
 from .server import IpmiServer
 
 _LOGGER = logging.getLogger(__name__)
@@ -65,7 +63,7 @@ async def async_setup_entry(
     async_add_entities(entities, True)
 
 
-class IpmiSwitch(CoordinatorEntity[DataUpdateCoordinator[dict[str, str]]], SwitchEntity):
+class IpmiSwitch(IpmiCoordinatorEntity, SwitchEntity):
     """Entity that controls a power on / soft shutdown of the IPMI server."""
 
     def __init__(
@@ -130,6 +128,7 @@ class IpmiSwitch(CoordinatorEntity[DataUpdateCoordinator[dict[str, str]]], Switc
         def _pending_off_expired(_now: datetime) -> None:
             self._pending_off_until = None
             self._unsub_pending_off = None
+            self._remember_coordinator_signature()
             self.async_write_ha_state()
             self.hass.async_create_task(self.coordinator.async_request_refresh())
 
@@ -147,8 +146,10 @@ class IpmiSwitch(CoordinatorEntity[DataUpdateCoordinator[dict[str, str]]], Switc
         """Turn off relay."""
         await async_run_chassis_command(self.hass, self.ipmi_data.soft_shutdown)
         self._start_pending_off()
-        self.async_write_ha_state()
-        if self._power_off_delay <= 0:
+        if self._power_off_delay > 0:
+            self._remember_coordinator_signature()
+            self.async_write_ha_state()
+        else:
             await self.coordinator.async_request_refresh()
 
     async def async_will_remove_from_hass(self) -> None:
