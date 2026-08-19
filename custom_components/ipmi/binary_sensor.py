@@ -13,12 +13,10 @@ from homeassistant.components.binary_sensor import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import (
-    CoordinatorEntity,
-    DataUpdateCoordinator,
-)
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import COORDINATOR, IPMI_DATA, IPMI_UNIQUE_ID
+from .entity import IpmiCoordinatorEntity
 from .helpers import device_info_from_ipmi_server, get_ipmi_server
 from .server import IpmiServer
 
@@ -55,7 +53,7 @@ async def async_setup_entry(
 
 
 class IpmiPowerBinarySensor(
-    CoordinatorEntity[DataUpdateCoordinator], BinarySensorEntity
+    IpmiCoordinatorEntity, BinarySensorEntity
 ):
     """Binary sensor reflecting chassis power state."""
 
