@@ -14,10 +14,7 @@ from homeassistant.components.button import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import (
-    CoordinatorEntity,
-    DataUpdateCoordinator,
-)
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import (
     COMMAND_POWER_CYCLE,
@@ -29,6 +26,7 @@ from .const import (
     IPMI_DATA,
     IPMI_UNIQUE_ID,
 )
+from .entity import IpmiCoordinatorEntity
 from .helpers import async_run_chassis_command, device_info_from_ipmi_server, get_ipmi_server
 from .server import IpmiServer
 
@@ -96,7 +94,7 @@ async def async_setup_entry(
     )
 
 
-class IpmiButton(CoordinatorEntity[DataUpdateCoordinator], ButtonEntity):
+class IpmiButton(IpmiCoordinatorEntity, ButtonEntity):
     """Button that runs a chassis power command."""
 
     _attr_has_entity_name = True
@@ -117,6 +115,10 @@ class IpmiButton(CoordinatorEntity[DataUpdateCoordinator], ButtonEntity):
         self._attr_unique_id = f"{unique_id}_{entity_key}"
         self._attr_device_info = device_info_from_ipmi_server(data, unique_id)
         self.ipmi_data = data
+
+    def _coordinator_signature(self) -> bool:
+        """Track availability without replaying the last-pressed timestamp."""
+        return self.available
 
     async def async_press(self) -> None:
         """Handle the button press."""
