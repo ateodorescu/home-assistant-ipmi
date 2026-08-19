@@ -13,7 +13,7 @@
   "requirements": [
     "python-ipmi>=0.5.8"
   ],
-  "version": "1.22.1",
+  "version": "1.22.2",
   "zeroconf": [
     "_ipmi._tcp.local."
   ]
