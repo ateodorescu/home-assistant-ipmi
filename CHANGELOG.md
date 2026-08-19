@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.22.2 — 2026-08-18
+
+### Fixed
+
+- Suppress unchanged coordinator state reports so shared IPMI polling no longer
+  repeats stale button presses, power states, or connection-backend values in
+  Home Assistant Activity; genuine state, attribute, and availability changes
+  continue to be reported
+
 ## 1.22.1 — 2026-08-17
 
 ### Fixed
