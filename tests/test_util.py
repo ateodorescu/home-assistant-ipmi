@@ -551,3 +551,86 @@ class TestIpmiServerLogic:
         assert result is not None
         assert result["power_on"] is False
         mock_ipmi.get_fru_inventory.assert_not_called()
+
+    # --- known-sensor tracking across polls -------------------------------
+
+    def _addon_payload(self, sensors: dict, states: dict) -> dict:
+        return {
+            "success": True,
+            "power_on": bool(states),
+            "device": {},
+            "sensors": sensors,
+            "states": states,
+            "statuses": {},
+        }
+
+    def _poll(self, srv, payload: dict, announce: MagicMock) -> None:
+        with (
+            patch.object(srv, "_probe_addon_meta", return_value=None),
+            patch.object(srv, "get_from_addon", return_value=payload),
+            patch.object(self._server_mod, "dispatcher_send", announce),
+        ):
+            srv.update()
+
+    def test_known_sensors_survive_empty_poll(self) -> None:
+        """A poll with no readings (host powered off) must not forget sensors.
+
+        Entities are never removed at runtime, so announcing an already
+        created sensor as "new" again makes the sensor platform re-create
+        an entity with an existing unique_id.
+        """
+        srv = self._make_server(backend_preference="addon")
+        announce = MagicMock()
+        full = self._addon_payload(
+            {"temperature": {"temp_cpu": "CPU Temp"}}, {"temp_cpu": "41"}
+        )
+        empty = self._addon_payload({}, {})
+
+        self._poll(srv, full, announce)
+        assert announce.call_count == 1
+        # The sensor platform reacts to the signal and creates the entity.
+        srv.add_known_sensor("temp_cpu")
+
+        self._poll(srv, empty, announce)
+        assert srv.is_known_sensor("temp_cpu")
+
+        self._poll(srv, full, announce)
+        assert srv.is_known_sensor("temp_cpu")
+        assert announce.call_count == 1
+
+    def test_known_sensors_survive_partial_poll(self) -> None:
+        """A sensor missing from one poll is still known when it returns."""
+        srv = self._make_server(backend_preference="addon")
+        announce = MagicMock()
+        both = self._addon_payload(
+            {"temperature": {"temp_cpu": "CPU Temp"}, "fan": {"fan1": "FAN1"}},
+            {"temp_cpu": "41", "fan1": "900"},
+        )
+        only_fan = self._addon_payload({"fan": {"fan1": "FAN1"}}, {"fan1": "900"})
+
+        self._poll(srv, both, announce)
+        assert announce.call_count == 1
+        srv.add_known_sensor("temp_cpu")
+        srv.add_known_sensor("fan1")
+
+        self._poll(srv, only_fan, announce)
+        self._poll(srv, both, announce)
+        assert srv.is_known_sensor("temp_cpu")
+        assert announce.call_count == 1
+
+    def test_genuinely_new_sensor_is_announced(self) -> None:
+        """Discovery of a sensor never seen before still fires the signal."""
+        srv = self._make_server(backend_preference="addon")
+        announce = MagicMock()
+        one = self._addon_payload(
+            {"temperature": {"temp_cpu": "CPU Temp"}}, {"temp_cpu": "41"}
+        )
+        two = self._addon_payload(
+            {"temperature": {"temp_cpu": "CPU Temp", "temp_mb": "MB Temp"}},
+            {"temp_cpu": "41", "temp_mb": "35"},
+        )
+
+        self._poll(srv, one, announce)
+        srv.add_known_sensor("temp_cpu")
+        self._poll(srv, two, announce)
+        assert announce.call_count == 2

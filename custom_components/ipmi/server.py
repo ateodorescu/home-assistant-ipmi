@@ -639,19 +639,21 @@ class IpmiServer:
 
         if info is not None:
             sensor_ids = iter_discovered_sensor_ids(info.sensors, info.states)
-            if not sensor_ids:
-                self._known_sensors.clear()
-            else:
-                self._known_sensors.intersection_update(sensor_ids)
-                new_sensors = [
-                    sensor_id
-                    for sensor_id in sensor_ids
-                    if sensor_id not in self._known_sensors
-                ]
-                if new_sensors:
-                    dispatcher_send(
-                        self.hass, IPMI_NEW_SENSOR_SIGNAL.format(self._entry_id)
-                    )
+            # _known_sensors tracks sensor ids that already have entities. It
+            # must only ever grow: entities are never removed at runtime, so a
+            # sensor that drops out of a poll (host powered off, BMC returning
+            # no readings) and later reappears must NOT be announced as new,
+            # or the platform re-creates an entity whose unique_id already
+            # exists ("Platform ipmi does not generate unique IDs").
+            new_sensors = [
+                sensor_id
+                for sensor_id in sensor_ids
+                if sensor_id not in self._known_sensors
+            ]
+            if new_sensors:
+                dispatcher_send(
+                    self.hass, IPMI_NEW_SENSOR_SIGNAL.format(self._entry_id)
+                )
 
     def is_known_sensor(self, sensor_id: str) -> bool:
         """Return True if this sensor id already has an entity."""
