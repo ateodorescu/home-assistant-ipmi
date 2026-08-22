@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Sensors that drop out of a poll (host powered off, BMC returning no readings) are no longer announced as new when they reappear, which re-created entities with existing unique IDs and logged `Platform ipmi does not generate unique IDs` on every power cycle
+
 ## 1.22.1 — 2026-08-17
 
 ### Fixed
