@@ -1,10 +1,15 @@
 # Changelog
 
-## Unreleased
+## 1.22.2 — 2026-08-24
 
 ### Fixed
 
-- Sensors that drop out of a poll (host powered off, BMC returning no readings) are no longer announced as new when they reappear, which re-created entities with existing unique IDs and logged `Platform ipmi does not generate unique IDs` on every power cycle
+- Sensors that drop out of a poll (host powered off, BMC returning no readings) are no longer announced as new when they reappear, which re-created entities with existing unique IDs and logged `Platform ipmi does not generate unique IDs` on every power cycle ([#87](https://github.com/ateodorescu/home-assistant-ipmi/issues/87))
+- Energy companion sensors are no longer re-announced on every poll: their keys are never part of reported SDR readings, so discovery tracking dropped them each cycle and could log the same duplicate unique ID warning
+
+### Added
+
+- Simplified Chinese translation (`zh-Hans`)
 
 ## 1.22.1 — 2026-08-17
 
