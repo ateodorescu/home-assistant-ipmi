@@ -31,8 +31,14 @@ PRIVILEGE_LEVELS = ["ADMINISTRATOR", "OPERATOR", "USER"]
 DEFAULT_ADDON_PORT = 9595
 DEFAULT_INTERFACE_TYPE = "lanplus"
 DEFAULT_TIMEOUT = 60
-# Addon proxies a full BMC poll; keep aligned with the coordinator budget.
+# Addon proxies a full BMC poll; keep aligned with the coordinator budget for
+# the read phase (time to receive a response once connected).
 DEFAULT_HTTP_TIMEOUT = 60
+# Fail fast when the addon isn't reachable at all (container down, wrong port,
+# network unreachable) instead of waiting out the full read timeout for a
+# connection that was never going to be established. Established TCP
+# connections to a local addon complete in milliseconds when it's up.
+DEFAULT_HTTP_CONNECT_TIMEOUT = 5
 
 KEY_STATUS = "status"
 KEY_CONNECTION_BACKEND = "connection_backend"

@@ -28,6 +28,7 @@ from .const import (
     BACKEND_RMCP,
     CONF_IGNORE_CHECKSUM_ERRORS,
     DEFAULT_BACKEND_PREFERENCE,
+    DEFAULT_HTTP_CONNECT_TIMEOUT,
     DEFAULT_HTTP_TIMEOUT,
     DEFAULT_SENSOR_TYPES,
     IPMI_NEW_SENSOR_SIGNAL,
@@ -310,7 +311,9 @@ class IpmiServer:
             if self._addon_use_post:
                 try:
                     http_resp = requests.post(
-                        url, json=params, timeout=DEFAULT_HTTP_TIMEOUT
+                        url,
+                        json=params,
+                        timeout=(DEFAULT_HTTP_CONNECT_TIMEOUT, DEFAULT_HTTP_TIMEOUT),
                     )
                     if http_resp.status_code not in _POST_UNSUPPORTED_STATUSES:
                         http_resp.raise_for_status()
@@ -329,7 +332,9 @@ class IpmiServer:
                     self._addon_use_post = False
 
             http_resp = requests.get(
-                url, params=params, timeout=DEFAULT_HTTP_TIMEOUT
+                url,
+                params=params,
+                timeout=(DEFAULT_HTTP_CONNECT_TIMEOUT, DEFAULT_HTTP_TIMEOUT),
             )
             http_resp.raise_for_status()
             response = http_resp.json()
