@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.22.3 — 2026-09-15
+
+### Fixed
+
+- Addon HTTP calls use a short connect timeout (5s) separate from the 60s read timeout, so an unreachable addon no longer blocks Home Assistant startup for up to ~60–120s before falling back to RMCP ([#91](https://github.com/ateodorescu/home-assistant-ipmi/pull/91))
+
 ## 1.22.2 — 2026-08-24
 
 ### Fixed
