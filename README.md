@@ -145,3 +145,16 @@ Use the **Power** binary sensor or **State** sensor for conditions (`on` / `off`
 - Do not rely on entity unique IDs surviving a remove/re-add (scheme stays `{entry_id}_{alias}_{key}` for backward compatibility; it is **not** migrated to alias-only IDs)
 - State sensor, device actions, and the `send_command` service are kept for backward compatibility alongside buttons and the power binary sensor
 - Default `backend_preference=auto` preserves addon-first then RMCP fallback
+
+## Troubleshooting
+
+### Addon: `sdr list full` / signal 11 (e.g. Intel M50CYP)
+
+The integration does not run `ipmitool` itself. Sensor discovery via the addon uses the companion [ipmi-server](https://github.com/ateodorescu/home-assistant-addons) HTTP API, which historically called `ipmitool … sdr list full`. On some Intel M50CYP BMCs that command segfaults (signal 11), while per-type queries such as `sdr type Temperature` still work ([#96](https://github.com/ateodorescu/home-assistant-ipmi/issues/96)).
+
+**Immediate workarounds**
+
+1. In the BMC, enable **Channel 3 / cipher suite 3** under RMCP+ cipher suite configuration (reporter workaround), and set Extra params / `addon_extra_params` to `-C 3`.
+2. Or set **Connection backend preference** to `rmcp` (or leave `auto` so the integration can fall back when the addon returns `success: false`).
+
+**Proper fix** is in the addon: fall back to per-type `sdr type` queries when `sdr list full` fails (never query Memory). Narrowing **Sensor types to discover** alone does not avoid the crash on older addon builds, because those builds still run `sdr list full` and only filter the parsed JSON afterward.
