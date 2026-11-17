@@ -1,0 +1,210 @@
+{
+  "config": {
+    "abort": {
+      "already_configured": "裝置已設定完成",
+      "reconfigure_successful": "重新設定成功",
+      "reauth_successful": "重新驗證成功"
+    },
+    "error": {
+      "cannot_connect": "連線失敗",
+      "unknown": "發生未預期的錯誤"
+    },
+    "step": {
+      "user": {
+        "title": "連線至 IPMI 伺服器",
+        "description": "請輸入 BMC 連線資訊。除非需要附加元件、Kg 金鑰或權限設定，否則請勿勾選進階選項。",
+        "data": {
+          "alias": "別名",
+          "host": "主機",
+          "password": "密碼",
+          "port": "連接埠",
+          "username": "使用者名稱",
+          "advanced": "設定進階選項"
+        },
+        "data_description": {
+          "host": "BMC 主機名稱或 IP 位址",
+          "port": "IPMI / RMCP 連接埠（通常為 623）",
+          "advanced": "附加元件 URL、介面、Kg 金鑰、權限等級、感測器篩選條件與連線後端"
+        }
+      },
+      "advanced": {
+        "title": "進階 IPMI 設定",
+        "description": "附加元件與連線設定。感測器篩選條件在下一步。",
+        "data": {
+          "kg_key": "Kg 加密金鑰（十六進位，最多 40 個字元）",
+          "privilege_level": "權限等級",
+          "ipmi_server_host": "ipmi-server 主機",
+          "addon_port": "ipmi-server 連接埠",
+          "addon_interface": "ipmitool 介面",
+          "addon_extra_params": "額外的 ipmitool 參數",
+          "backend_preference": "連線後端偏好"
+        },
+        "data_description": {
+          "kg_key": "選填。需要 ipmi-server 附加元件；備援的 python-ipmi 不支援。",
+          "ipmi_server_host": "在 Home Assistant OS 上請使用附加元件的主機名稱，而不是 localhost。",
+          "addon_interface": "通常為 lanplus。使用 auto 可由 ipmitool 自行決定。",
+          "addon_extra_params": "選填的 ipmitool 原始參數（例如加密套件）。",
+          "backend_preference": "auto = 先嘗試附加元件，再嘗試 RMCP（歷來的預設值）。rmcp = 僅使用 python-ipmi（略過附加元件探測）。警告：send_command 服務需要附加元件，使用 rmcp 時將無法運作。"
+        }
+      },
+      "advanced_extras": {
+        "title": "感測器篩選條件",
+        "description": "選填的感測器探索設定。清除所有類型即可僅保留電源狀態與機箱控制（BMC 輪詢需要 ipmi-server 2.6 以上版本）。",
+        "data": {
+          "ignore_checksum_errors": "忽略 FRU 檢查碼錯誤",
+          "sensor_types": "要探索的感測器類型",
+          "create_energy_sensors": "依電源讀數建立能源感測器"
+        },
+        "data_description": {
+          "sensor_types": "僅會為新探索到的感測器建立所選類型。若為功能有限的 BMC（例如 Sipeed NanoKVM），可留空以僅監控電源。",
+          "create_energy_sensors": "感測器類型中必須包含電源。每個探索到的電源感測器也會取得一個 kWh 能源感測器，供能源儀表板使用（預設啟用）。"
+        }
+      },
+      "reconfigure": {
+        "title": "重新設定 IPMI 伺服器",
+        "description": "更新此項目的 BMC 連線資訊。",
+        "data": {
+          "alias": "別名",
+          "host": "主機",
+          "password": "密碼",
+          "port": "連接埠",
+          "username": "使用者名稱",
+          "advanced": "設定進階選項"
+        }
+      },
+      "reconfigure_advanced": {
+        "title": "進階 IPMI 設定",
+        "description": "附加元件與連線設定。除非上一個畫面已啟用 Minimal IPMI，否則感測器篩選條件在下一步。",
+        "data": {
+          "kg_key": "Kg 加密金鑰（十六進位，最多 40 個字元）",
+          "privilege_level": "權限等級",
+          "ipmi_server_host": "ipmi-server 主機",
+          "addon_port": "ipmi-server 連接埠",
+          "addon_interface": "ipmitool 介面",
+          "addon_extra_params": "額外的 ipmitool 參數",
+          "backend_preference": "連線後端偏好"
+        },
+        "data_description": {
+          "backend_preference": "auto = 先嘗試附加元件，再嘗試 RMCP（歷來的預設值）。rmcp = 僅使用 python-ipmi（略過附加元件探測）。警告：send_command 服務需要附加元件，使用 rmcp 時將無法運作。"
+        }
+      },
+      "reconfigure_advanced_extras": {
+        "title": "感測器篩選條件",
+        "description": "選填的感測器探索設定。啟用 Minimal IPMI 時不會使用。",
+        "data": {
+          "ignore_checksum_errors": "忽略 FRU 檢查碼錯誤",
+          "sensor_types": "要探索的感測器類型",
+          "create_energy_sensors": "依電源讀數建立能源感測器"
+        },
+        "data_description": {
+          "sensor_types": "僅會為新探索到的感測器建立所選類型。若為功能有限的 BMC（例如 Sipeed NanoKVM），可留空以僅監控電源。",
+          "create_energy_sensors": "感測器類型中必須包含電源。每個探索到的電源感測器也會取得一個 kWh 能源感測器，供能源儀表板使用（預設啟用）。"
+        }
+      },
+      "reauth_confirm": {
+        "title": "重新驗證 IPMI 伺服器",
+        "description": "{host} 驗證失敗。請輸入更新後的憑證。",
+        "data": {
+          "username": "使用者名稱",
+          "password": "密碼"
+        }
+      },
+      "rmcp_warning": {
+        "title": "僅限 RMCP 模式",
+        "description": "您選擇了 rmcp（僅使用 python-ipmi）。自訂的 send_command 服務將無法運作，因為它需要 ipmi-server 附加元件或獨立的 HTTP API。感測器與機箱電源控制仍可使用。請提交以繼續，或返回選擇 auto／addon。"
+      },
+      "reconfigure_rmcp_warning": {
+        "title": "僅限 RMCP 模式",
+        "description": "您選擇了 rmcp（僅使用 python-ipmi）。自訂的 send_command 服務將無法運作，因為它需要 ipmi-server 附加元件或獨立的 HTTP API。感測器與機箱電源控制仍可使用。請提交以繼續，或返回選擇 auto／addon。"
+      }
+    }
+  },
+  "entity": {
+    "switch": {
+      "chassis": {
+        "name": "開機／軟關機"
+      }
+    },
+    "binary_sensor": {
+      "power": {
+        "name": "電源"
+      }
+    },
+    "button": {
+      "power_on": {
+        "name": "開機"
+      },
+      "power_off": {
+        "name": "關機"
+      },
+      "power_cycle": {
+        "name": "重新開關機"
+      },
+      "power_reset": {
+        "name": "重設電源"
+      },
+      "soft_shutdown": {
+        "name": "軟關機"
+      }
+    },
+    "sensor": {
+      "connection_backend": {
+        "name": "連線後端"
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "IPMI 選項",
+        "description": "篩選條件僅套用於新探索到的感測器。啟用某個類型後，現有實體在重新載入此項目之前不會變更。",
+        "data": {
+          "scan_interval": "掃描間隔（秒）",
+          "sensor_types": "要探索的感測器類型",
+          "backend_preference": "連線後端偏好",
+          "create_energy_sensors": "依電源讀數建立能源感測器",
+          "power_off_delay": "電源開關關閉延遲（秒）"
+        },
+        "data_description": {
+          "sensor_types": "僅會為新探索到的感測器建立所選類型。若為功能有限的 BMC（例如 Sipeed NanoKVM），可留空以僅監控電源。",
+          "backend_preference": "auto = 先嘗試附加元件，再嘗試 RMCP（歷來的預設值）。addon = 僅使用附加元件。rmcp = 僅使用 python-ipmi（略過附加元件探測）。警告：send_command 服務需要附加元件，使用 rmcp 時將無法運作。",
+          "create_energy_sensors": "感測器類型中必須包含電源。每個探索到的電源感測器也會取得一個 kWh 能源感測器，供能源儀表板使用（預設啟用）。若未監控電源、此選項已關閉，或電源感測器實體已停用，能源實體將無法使用。",
+          "power_off_delay": "軟關機後，即使 BMC 仍回報開機，也會讓電源開關保持關閉這麼多秒。0 表示停用（開關會立即跟隨 BMC 即時狀態）。不影響狀態感測器。"
+        }
+      },
+      "rmcp_warning": {
+        "title": "僅限 RMCP 模式",
+        "description": "您選擇了 rmcp（僅使用 python-ipmi）。自訂的 send_command 服務將無法運作，因為它需要 ipmi-server 附加元件或獨立的 HTTP API。感測器與機箱電源控制仍可使用。請提交以繼續，或返回選擇 auto／addon。"
+      }
+    }
+  },
+  "device_automation": {
+    "action_type": {
+      "power_on": "開機",
+      "power_off": "關機",
+      "power_cycle": "重新開關機",
+      "power_reset": "重設電源",
+      "soft_shutdown": "軟關機"
+    }
+  },
+  "services": {
+    "send_command": {
+      "name": "傳送自訂指令",
+      "description": "僅透過 ipmi-server 附加元件或獨立的 HTTP API 傳送 ipmitool 風格的自訂指令（僅限 RMCP 的連線無法使用）。",
+      "fields": {
+        "server": {
+          "name": "伺服器",
+          "description": "要傳送指令的目標伺服器"
+        },
+        "command": {
+          "name": "指令",
+          "description": "要傳送的指令"
+        },
+        "ignore_errors": {
+          "name": "忽略錯誤",
+          "description": "傳送指令時忽略錯誤。部分原始指令可能回傳錯誤，但實際上仍已成功。僅在您清楚自己在做什麼時才使用。"
+        }
+      }
+    }
+  }
+}
