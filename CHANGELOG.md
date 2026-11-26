@@ -6,6 +6,7 @@
 
 - Optional **IPMI 2.0 (RMCP+)** for the native python-ipmi connection, with a configurable **cipher suite** ([#100](https://github.com/ateodorescu/home-assistant-ipmi/issues/100)). Set under advanced setup / **Reconfigure**: *IPMI protocol (python-ipmi)* and *Cipher suite (IPMI 2.0 only)*. Fixes BMCs that reject IPMI 1.5 logins, such as the ASRock Rack X470D4U (use IPMI 2.0 with cipher suite 3)
 - The **Kg key** is now used by python-ipmi when IPMI 2.0 is selected
+- DCMI power readings on the python-ipmi (RMCP) path, for BMCs that only report power through `ipmitool dcmi power reading` and not as SDR sensors, such as Supermicro X11 ([#94](https://github.com/ateodorescu/home-assistant-ipmi/issues/94)). Installs without the addon (for example Docker) now get the same **Instantaneous power reading**, **Minimum/Maximum during sampling period** and **Average power reading over sample period** sensors (plus **Sampling period** when the `time` sensor type is selected) that the addon already provides, with the same entity keys, so energy sensors work too. The reading is best effort: it is only requested when the `power` sensor type is selected, errors never fail the poll, and BMCs that reject the command are not asked again until the integration reloads. SDR sensors with the same key take precedence, and the addon path is unchanged.
 
 ### Changed
 

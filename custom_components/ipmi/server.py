@@ -42,6 +42,7 @@ from .const import (
 from .util import (
     addon_action_succeeded,
     categorize_rmcp_sensor,
+    dcmi_power_reading_sensors,
     effective_sensor_types,
     generate_sensor_id,
     IpmiChassisCommandError,
@@ -56,6 +57,11 @@ from .util import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+# Consecutive DCMI power reading failures (timeouts, transport errors) before the
+# integration stops asking until it is reloaded. A completion-code error (the BMC
+# answering "not supported") disables it immediately.
+_DCMI_MAX_FAILURES = 3
 
 # HTTP statuses that mean "this addon build does not accept POST" → fall back to GET.
 _POST_UNSUPPORTED_STATUSES = frozenset({404, 405, 501})
@@ -138,6 +144,10 @@ class IpmiServer:
         # Reused RMCP session (reconnected on error).
         self._rmcp_ipmi: pyipmi.Ipmi | None = None
         self._rmcp_lock = threading.Lock()
+
+        # DCMI power reading on the RMCP path (best effort, see _add_rmcp_dcmi_power).
+        self._dcmi_supported: bool = True
+        self._dcmi_failures = 0
 
     @property
     def name(self) -> str:
@@ -503,6 +513,8 @@ class IpmiServer:
                         if category and id_string is not None:
                             json["sensors"][category][id_string] = name
                             json["states"][id_string] = value
+
+                self._add_rmcp_dcmi_power(ipmi, json)
             except Exception:
                 # Drop cached session so the next call reconnects.
                 self._invalidate_rmcp_session_unlocked()
@@ -518,6 +530,50 @@ class IpmiServer:
             return None
 
         return json
+
+    def _add_rmcp_dcmi_power(self, ipmi: pyipmi.Ipmi, json: dict[str, Any]) -> None:
+        """Add DCMI power readings (``dcmi power reading``) to an RMCP poll.
+
+        Some BMCs (e.g. Supermicro X11) only report power through DCMI, not SDR.
+        Best effort: errors are logged at debug level and never fail the poll.
+        Sensors already reported by SDR under the same key are left untouched.
+        Caller holds RMCP lock.
+        """
+        if not self._dcmi_supported or "power" not in self._sensor_types:
+            return
+
+        try:
+            reading = ipmi.get_power_reading(1)
+        except pyipmi.errors.CompletionCodeError as err:
+            self._dcmi_supported = False
+            _LOGGER.debug(
+                "IPMI server %s does not support DCMI power reading (CC=0x%02x); "
+                "not asking again until reload",
+                self._host,
+                err.cc,
+            )
+            return
+        except Exception as err:  # pylint: disable=broad-except
+            self._dcmi_failures += 1
+            if self._dcmi_failures >= _DCMI_MAX_FAILURES:
+                self._dcmi_supported = False
+            _LOGGER.debug(
+                "DCMI power reading for IPMI server %s failed (%d/%d): %s",
+                self._host,
+                self._dcmi_failures,
+                _DCMI_MAX_FAILURES,
+                err,
+            )
+            return
+
+        self._dcmi_failures = 0
+        for category, sensor_id, name, value in dcmi_power_reading_sensors(
+            reading, self._sensor_types
+        ):
+            if sensor_id in json["states"]:
+                continue
+            json["sensors"][category][sensor_id] = name
+            json["states"][sensor_id] = value
 
     def run_rmcp_command(self, command: int) -> None:
         """Send a chassis control command over RMCP.

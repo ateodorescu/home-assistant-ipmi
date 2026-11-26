@@ -26,6 +26,7 @@ If the addon / standalone HTTP API is reachable it is used first; otherwise the 
 |---|---|---|
 | Temperature / fan / voltage sensors | yes | yes |
 | Current / power / time sensors | yes (when BMC exposes them) | yes when SDR type/units map (Amps / Watts / seconds) |
+| DCMI power reading (`dcmi power reading`) | yes | yes (best effort, only when the `power` sensor type is selected) |
 | Chassis power commands | yes | yes |
 | Custom `send_command` service | yes only | no |
 | IPMI 2.0 (RMCP+) | yes (`lanplus`) | optional, see **IPMI protocol** below (default IPMI 1.5) |
