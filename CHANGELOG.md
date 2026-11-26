@@ -9,6 +9,10 @@
 - DCMI power readings on the python-ipmi (RMCP) path, for BMCs that only report power through `ipmitool dcmi power reading` and not as SDR sensors, such as Supermicro X11 ([#94](https://github.com/ateodorescu/home-assistant-ipmi/issues/94)). Installs without the addon (for example Docker) now get the same **Instantaneous power reading**, **Minimum/Maximum during sampling period** and **Average power reading over sample period** sensors (plus **Sampling period** when the `time` sensor type is selected) that the addon already provides, with the same entity keys, so energy sensors work too. The reading is best effort: it is only requested when the `power` sensor type is selected, errors never fail the poll, and BMCs that reject the command are not asked again until the integration reloads. SDR sensors with the same key take precedence, and the addon path is unchanged.
 - **Scan interval while powered off** option (Configure) for a slower poll while the server is off ([#92](https://github.com/ateodorescu/home-assistant-ipmi/issues/92)). After each successful poll the integration picks the next interval from the chassis power state: the normal **Scan interval** while on (or unknown), the new interval while off. Default `0` means "same as the scan interval", so existing setups poll exactly as before. Diagnostics now also show both configured intervals
 
+### Security
+
+- The `ipmi.send_command` service is now limited to **admin** users ([#89](https://github.com/ateodorescu/home-assistant-ipmi/issues/89)). It runs any ipmitool command through the addon with the stored BMC username and password, so non-admin users could previously power servers off, change BMC users or send the credentials to another host. Calls from non-admin users now fail with *Unauthorized*; this includes dashboard buttons and scripts that a non-admin user runs. Admin users and automations fired by triggers (which run without a user) work as before. Uses the same check as Home Assistant's admin-only services and works on every supported Home Assistant version
+
 ### Changed
 
 - Requires `python-ipmi>=0.6.1` (first release with RMCP+ support)
