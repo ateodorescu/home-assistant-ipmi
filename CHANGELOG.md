@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.23.0 — Unreleased
+## Unreleased
 
 ### Added
 
