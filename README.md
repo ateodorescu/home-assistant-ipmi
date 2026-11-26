@@ -28,7 +28,8 @@ If the addon / standalone HTTP API is reachable it is used first; otherwise the 
 | Current / power / time sensors | yes (when BMC exposes them) | yes when SDR type/units map (Amps / Watts / seconds) |
 | Chassis power commands | yes | yes |
 | Custom `send_command` service | yes only | no |
-| Kg key (RMCP+) | yes | ignored (warning logged) |
+| IPMI 2.0 (RMCP+) | yes (`lanplus`) | optional, see **IPMI protocol** below (default IPMI 1.5) |
+| Kg key (RMCP+) | yes | with IPMI 2.0 only (ignored with a warning over IPMI 1.5) |
 | Connection backend diagnostic | shows `addon` | shows `rmcp` |
 
 ## Installation
@@ -79,6 +80,8 @@ Integration options (Configure) and advanced setup / reconfigure:
 - **Power switch off delay** (seconds) — after soft shutdown, keep the power switch off while the OS stops (default: 60; set to 0 to follow live BMC state immediately; does not affect the State sensor)
 - **Minimal IPMI (power only)** — for BMCs with a limited command set (e.g. [Sipeed NanoKVM](https://wiki.sipeed.com/hardware/en/kvm/NanoKVM/ipmi.html)): skips FRU and sensor polling; power status, binary sensor, switch, and buttons only. Status polling uses python-ipmi (RMCP), not the addon full poll. Chassis commands still use the addon when available.
 - **Connection backend preference** — `auto` (default: try addon first, then RMCP), `addon` (addon only), or `rmcp` (python-ipmi only; skips addon probes). Default matches historical behavior.
+- **IPMI protocol (python-ipmi)** — the LAN protocol used when the integration talks to the BMC directly (no addon): `IPMI 1.5 (RMCP)` (default, same as previous versions) or `IPMI 2.0 (RMCP+)`. Advanced setup / reconfigure only. Does not affect the addon, which keeps using its own *ipmitool interface* and extra parameters.
+- **Cipher suite (IPMI 2.0 only)** — `auto` (default: python-ipmi tries suite 17, then 3) or a fixed suite `1`, `2`, `3`, `15`, `16` or `17`. Ignored with IPMI 1.5. Advanced setup / reconfigure only.
 
 During initial setup or reconfigure, enable **Configure advanced options** to set sensor filters, energy sensors, minimal IPMI, and backend preference. The same settings remain editable later under **Configure**.
 Changing filters does not remove already created entities; enabling a type later can create new ones after reload.
@@ -145,8 +148,19 @@ Use the **Power** binary sensor or **State** sensor for conditions (`on` / `off`
 - Do not rely on entity unique IDs surviving a remove/re-add (scheme stays `{entry_id}_{alias}_{key}` for backward compatibility; it is **not** migrated to alias-only IDs)
 - State sensor, device actions, and the `send_command` service are kept for backward compatibility alongside buttons and the power binary sensor
 - Default `backend_preference=auto` preserves addon-first then RMCP fallback
+- Default `native_protocol=rmcp` keeps the python-ipmi connection on IPMI 1.5, as in earlier versions; IPMI 2.0 is opt-in
 
 ## Troubleshooting
+
+### python-ipmi: privilege errors or timeouts without the addon (e.g. ASRock Rack X470D4U)
+
+Without the addon, the integration connects with python-ipmi over **IPMI 1.5** by default. Some BMCs only accept a user (especially a low-privilege `USER` account) over **IPMI 2.0 / RMCP+**, and IPMI 1.5 then fails with errors such as `CompletionCodeError` with `cc=0x86` (privilege limit) ([#100](https://github.com/ateodorescu/home-assistant-ipmi/issues/100)).
+
+1. Open **Reconfigure** on the entry and tick **Configure advanced options**.
+2. Set **IPMI protocol (python-ipmi)** to **IPMI 2.0 (RMCP+)**.
+3. Leave **Cipher suite** on **auto** first. If the connection opens but requests then time out (`RetryError`), pick a fixed suite: **3** works on the ASRock Rack X470D4U, where the default negotiation picks suite 17 and then hangs.
+
+If you use a **Kg key**, python-ipmi now uses it with IPMI 2.0. Suites 3 and 17 use AES encryption, which needs the `cryptography` package; it ships with Home Assistant.
 
 ### Addon: `sdr list full` / signal 11 (e.g. Intel M50CYP)
 

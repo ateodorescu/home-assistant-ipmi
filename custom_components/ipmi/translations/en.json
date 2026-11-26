@@ -33,6 +33,8 @@
         "data": {
           "kg_key": "Kg Encryption Key (hex, max 40 chars)",
           "privilege_level": "Privilege Level",
+          "native_protocol": "IPMI protocol (python-ipmi)",
+          "native_cipher_suite": "Cipher suite (IPMI 2.0 only)",
           "ipmi_server_host": "ipmi-server host",
           "addon_port": "ipmi-server port",
           "addon_interface": "ipmitool interface",
@@ -40,7 +42,9 @@
           "backend_preference": "Connection backend preference"
         },
         "data_description": {
-          "kg_key": "Optional. Requires the ipmi-server addon; not supported by the python-ipmi fallback.",
+          "kg_key": "Optional. Used by the ipmi-server addon, and by python-ipmi when the IPMI protocol is IPMI 2.0. Ignored by python-ipmi over IPMI 1.5.",
+          "native_protocol": "Used only when the integration talks to the BMC directly (no addon). IPMI 1.5 is the default and matches previous versions. Choose IPMI 2.0 if your BMC rejects IPMI 1.5 logins (for example some ASRock Rack boards).",
+          "native_cipher_suite": "auto tries cipher suite 17, then 3. Choose a fixed suite (often 3) if the connection opens but requests then time out. Ignored with IPMI 1.5.",
           "ipmi_server_host": "On Home Assistant OS use the addon hostname, not localhost.",
           "addon_interface": "Usually lanplus. Use auto to let ipmitool decide.",
           "addon_extra_params": "Optional raw ipmitool arguments (for example cipher suite).",
@@ -78,6 +82,8 @@
         "data": {
           "kg_key": "Kg Encryption Key (hex, max 40 chars)",
           "privilege_level": "Privilege Level",
+          "native_protocol": "IPMI protocol (python-ipmi)",
+          "native_cipher_suite": "Cipher suite (IPMI 2.0 only)",
           "ipmi_server_host": "ipmi-server host",
           "addon_port": "ipmi-server port",
           "addon_interface": "ipmitool interface",
@@ -85,7 +91,10 @@
           "backend_preference": "Connection backend preference"
         },
         "data_description": {
-          "backend_preference": "auto = try addon first then RMCP (historical default). rmcp = python-ipmi only (skips addon probes). Warning: the send_command service requires the addon and will not work with rmcp."
+          "backend_preference": "auto = try addon first then RMCP (historical default). rmcp = python-ipmi only (skips addon probes). Warning: the send_command service requires the addon and will not work with rmcp.",
+          "kg_key": "Optional. Used by the ipmi-server addon, and by python-ipmi when the IPMI protocol is IPMI 2.0. Ignored by python-ipmi over IPMI 1.5.",
+          "native_protocol": "Used only when the integration talks to the BMC directly (no addon). IPMI 1.5 is the default and matches previous versions. Choose IPMI 2.0 if your BMC rejects IPMI 1.5 logins (for example some ASRock Rack boards).",
+          "native_cipher_suite": "auto tries cipher suite 17, then 3. Choose a fixed suite (often 3) if the connection opens but requests then time out. Ignored with IPMI 1.5."
         }
       },
       "reconfigure_advanced_extras": {
@@ -204,6 +213,25 @@
           "name": "Ignore errors",
           "description": "Ignore errors when sending the command. Some raw commands may return an error, but still be successful. Only use this if you know what you are doing."
         }
+      }
+    }
+  },
+  "selector": {
+    "native_protocol": {
+      "options": {
+        "rmcp": "IPMI 1.5 (RMCP)",
+        "rmcpplus": "IPMI 2.0 (RMCP+)"
+      }
+    },
+    "native_cipher_suite": {
+      "options": {
+        "auto": "auto (17, then 3)",
+        "1": "1",
+        "2": "2",
+        "3": "3",
+        "15": "15",
+        "16": "16",
+        "17": "17"
       }
     }
   }

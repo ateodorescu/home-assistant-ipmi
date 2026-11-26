@@ -62,9 +62,12 @@ Addon HTTP uses **GET** (query params; supported by current addons). POST is onl
 | Current / power / time | yes | when SDR type/units map |
 | Chassis power commands | yes | yes |
 | Custom `send_command` | yes only | no |
-| Kg key (RMCP+) | yes | ignored (warning logged) |
+| IPMI 2.0 (RMCP+) | yes (`lanplus`) | opt-in via `native_protocol` (default IPMI 1.5) |
+| Kg key (RMCP+) | yes | with `native_protocol=rmcpplus` only (warning over IPMI 1.5) |
 
 When changing connection or auth behavior, keep addon-first fallback as the **default** (`auto`) and preserve both paths unless the task explicitly drops one.
+
+The python-ipmi LAN protocol comes from config entry data `native_protocol` (`rmcp` = IPMI 1.5, default and historical behavior; `rmcpplus` = IPMI 2.0) and `native_cipher_suite` (`auto` or `1/2/3/15/16/17`, RMCP+ only). `util.native_interface_args` builds the `create_interface` arguments; a missing or unknown protocol must keep returning the exact IPMI 1.5 arguments. These settings never affect the addon path.
 
 Chassis commands (`power_on`, `soft_shutdown`, …) run through `_chassis_command`: addon first, RMCP fallback, raise `IpmiChassisCommandError` on failure. RMCP poll and chassis control share `_rmcp_lock`. Entities use `helpers.async_run_chassis_command` → `HomeAssistantError`. Prefer **buttons** over the power switch in automations (HA skips switch services when `is_on` already matches).
 

@@ -33,6 +33,8 @@
         "data": {
           "kg_key": "Kg 加密密钥（十六进制，最多 40 个字符）",
           "privilege_level": "权限等级",
+          "native_protocol": "IPMI 协议（python-ipmi）",
+          "native_cipher_suite": "加密套件（仅 IPMI 2.0）",
           "ipmi_server_host": "ipmi-server 主机",
           "addon_port": "ipmi-server 端口",
           "addon_interface": "ipmitool 接口",
@@ -40,7 +42,9 @@
           "backend_preference": "连接后端偏好"
         },
         "data_description": {
-          "kg_key": "可选。需要 ipmi-server 插件支持；python-ipmi 后备模式不支持此项。",
+          "kg_key": "可选。由 ipmi-server 插件使用；当 IPMI 协议为 IPMI 2.0 时也由 python-ipmi 使用。python-ipmi 使用 IPMI 1.5 时忽略。",
+          "native_protocol": "仅在集成直接连接 BMC（不使用插件）时使用。默认 IPMI 1.5，与之前版本一致。如果 BMC 拒绝 IPMI 1.5 登录（例如部分 ASRock Rack 主板），请选择 IPMI 2.0。",
+          "native_cipher_suite": "auto 先尝试加密套件 17，再尝试 3。如果连接能建立但随后请求超时，请选择固定套件（通常为 3）。使用 IPMI 1.5 时忽略。",
           "ipmi_server_host": "在 Home Assistant OS 上请使用插件主机名，而不是 localhost。",
           "addon_interface": "通常为 lanplus。使用 auto 让 ipmitool 自动决定。",
           "addon_extra_params": "可选的原始 ipmitool 参数（例如加密套件）。",
@@ -78,6 +82,8 @@
         "data": {
           "kg_key": "Kg 加密密钥（十六进制，最多 40 个字符）",
           "privilege_level": "权限等级",
+          "native_protocol": "IPMI 协议（python-ipmi）",
+          "native_cipher_suite": "加密套件（仅 IPMI 2.0）",
           "ipmi_server_host": "ipmi-server 主机",
           "addon_port": "ipmi-server 端口",
           "addon_interface": "ipmitool 接口",
@@ -85,7 +91,10 @@
           "backend_preference": "连接后端偏好"
         },
         "data_description": {
-          "backend_preference": "auto = 优先尝试插件，然后是 RMCP（历史默认值）。rmcp = 仅使用 python-ipmi（跳过插件探测）。警告：send_command 服务需要插件支持，在 rmcp 模式下无法工作。"
+          "backend_preference": "auto = 优先尝试插件，然后是 RMCP（历史默认值）。rmcp = 仅使用 python-ipmi（跳过插件探测）。警告：send_command 服务需要插件支持，在 rmcp 模式下无法工作。",
+          "kg_key": "可选。由 ipmi-server 插件使用；当 IPMI 协议为 IPMI 2.0 时也由 python-ipmi 使用。python-ipmi 使用 IPMI 1.5 时忽略。",
+          "native_protocol": "仅在集成直接连接 BMC（不使用插件）时使用。默认 IPMI 1.5，与之前版本一致。如果 BMC 拒绝 IPMI 1.5 登录（例如部分 ASRock Rack 主板），请选择 IPMI 2.0。",
+          "native_cipher_suite": "auto 先尝试加密套件 17，再尝试 3。如果连接能建立但随后请求超时，请选择固定套件（通常为 3）。使用 IPMI 1.5 时忽略。"
         }
       },
       "reconfigure_advanced_extras": {
@@ -204,6 +213,25 @@
           "name": "忽略错误",
           "description": "发送命令时忽略错误。某些原始命令可能会返回错误，但实际上已执行成功。仅在您确切知道自己在做什么时使用此选项。"
         }
+      }
+    }
+  },
+  "selector": {
+    "native_protocol": {
+      "options": {
+        "rmcp": "IPMI 1.5（RMCP）",
+        "rmcpplus": "IPMI 2.0（RMCP+）"
+      }
+    },
+    "native_cipher_suite": {
+      "options": {
+        "auto": "auto（先 17，再 3）",
+        "1": "1",
+        "2": "2",
+        "3": "3",
+        "15": "15",
+        "16": "16",
+        "17": "17"
       }
     }
   }
