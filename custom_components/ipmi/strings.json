@@ -24,6 +24,8 @@
         "data": {
           "kg_key": "Kg encryption key",
           "privilege_level": "Privilege level",
+          "native_protocol": "IPMI protocol (python-ipmi)",
+          "native_cipher_suite": "Cipher suite (IPMI 2.0 only)",
           "ipmi_server_host": "ipmi-server host",
           "addon_port": "ipmi-server port",
           "addon_interface": "ipmitool interface",
@@ -31,7 +33,9 @@
           "backend_preference": "Connection backend preference"
         },
         "data_description": {
-          "kg_key": "Optional. Requires the ipmi-server addon; not supported by the python-ipmi fallback.",
+          "kg_key": "Optional. Used by the ipmi-server addon, and by python-ipmi when the IPMI protocol is IPMI 2.0. Ignored by python-ipmi over IPMI 1.5.",
+          "native_protocol": "Used only when the integration talks to the BMC directly (no addon). IPMI 1.5 is the default and matches previous versions. Choose IPMI 2.0 if your BMC rejects IPMI 1.5 logins (for example some ASRock Rack boards).",
+          "native_cipher_suite": "auto tries cipher suite 17, then 3. Choose a fixed suite (often 3) if the connection opens but requests then time out. Ignored with IPMI 1.5.",
           "ipmi_server_host": "On Home Assistant OS use the addon hostname, not localhost.",
           "addon_interface": "Usually lanplus. Use auto to let ipmitool decide.",
           "addon_extra_params": "Optional raw ipmitool arguments (for example cipher suite).",
@@ -73,6 +77,8 @@
         "data": {
           "kg_key": "[%key:component::ipmi::config::step::advanced::data::kg_key%]",
           "privilege_level": "[%key:component::ipmi::config::step::advanced::data::privilege_level%]",
+          "native_protocol": "[%key:component::ipmi::config::step::advanced::data::native_protocol%]",
+          "native_cipher_suite": "[%key:component::ipmi::config::step::advanced::data::native_cipher_suite%]",
           "ipmi_server_host": "[%key:component::ipmi::config::step::advanced::data::ipmi_server_host%]",
           "addon_port": "[%key:component::ipmi::config::step::advanced::data::addon_port%]",
           "addon_interface": "[%key:component::ipmi::config::step::advanced::data::addon_interface%]",
@@ -80,6 +86,8 @@
           "backend_preference": "[%key:component::ipmi::config::step::advanced::data::backend_preference%]"
         },
         "data_description": {
+          "native_protocol": "[%key:component::ipmi::config::step::advanced::data_description::native_protocol%]",
+          "native_cipher_suite": "[%key:component::ipmi::config::step::advanced::data_description::native_cipher_suite%]",
           "backend_preference": "[%key:component::ipmi::config::step::advanced::data_description::backend_preference%]"
         }
       },
@@ -185,6 +193,25 @@
       "power_cycle": "Power cycle",
       "power_reset": "Power reset",
       "soft_shutdown": "Soft shutdown"
+    }
+  },
+  "selector": {
+    "native_protocol": {
+      "options": {
+        "rmcp": "IPMI 1.5 (RMCP)",
+        "rmcpplus": "IPMI 2.0 (RMCP+)"
+      }
+    },
+    "native_cipher_suite": {
+      "options": {
+        "auto": "auto (17, then 3)",
+        "1": "1",
+        "2": "2",
+        "3": "3",
+        "15": "15",
+        "16": "16",
+        "17": "17"
+      }
     }
   }
 }

@@ -33,6 +33,8 @@
         "data": {
           "kg_key": "Clé de chiffrement Kg (hex, max 40 caractères)",
           "privilege_level": "Niveau de privilège",
+          "native_protocol": "Protocole IPMI (python-ipmi)",
+          "native_cipher_suite": "Suite de chiffrement (IPMI 2.0 uniquement)",
           "ipmi_server_host": "Hôte ipmi-server",
           "addon_port": "Port ipmi-server",
           "addon_interface": "Interface ipmitool",
@@ -44,7 +46,9 @@
           "minimal_ipmi": "IPMI minimal (alimentation uniquement)"
         },
         "data_description": {
-          "kg_key": "Optionnel. Nécessite l'add-on ipmi-server ; non pris en charge par le repli python-ipmi.",
+          "kg_key": "Optionnel. Utilisé par l'add-on ipmi-server, et par python-ipmi lorsque le protocole IPMI est IPMI 2.0. Ignoré par python-ipmi en IPMI 1.5.",
+          "native_protocol": "Utilisé uniquement lorsque l'intégration communique directement avec le BMC (sans add-on). IPMI 1.5 est la valeur par défaut, identique aux versions précédentes. Choisissez IPMI 2.0 si le BMC refuse les connexions IPMI 1.5 (par exemple certaines cartes ASRock Rack).",
+          "native_cipher_suite": "auto essaie la suite 17, puis la 3. Choisissez une suite fixe (souvent 3) si la connexion s'ouvre mais que les requêtes expirent ensuite. Ignoré en IPMI 1.5.",
           "ipmi_server_host": "Sous Home Assistant OS, utilisez le nom d'hôte de l'add-on, pas localhost.",
           "addon_interface": "Généralement lanplus. auto laisse ipmitool décider.",
           "addon_extra_params": "Arguments ipmitool optionnels (par ex. suite de chiffrement).",
@@ -72,6 +76,8 @@
         "data": {
           "kg_key": "Clé de chiffrement Kg (hex, max 40 caractères)",
           "privilege_level": "Niveau de privilège",
+          "native_protocol": "Protocole IPMI (python-ipmi)",
+          "native_cipher_suite": "Suite de chiffrement (IPMI 2.0 uniquement)",
           "ipmi_server_host": "Hôte ipmi-server",
           "addon_port": "Port ipmi-server",
           "addon_interface": "Interface ipmitool",
@@ -83,7 +89,9 @@
           "minimal_ipmi": "IPMI minimal (alimentation uniquement)"
         },
         "data_description": {
-          "kg_key": "Optionnel. Nécessite l'add-on ipmi-server ; non pris en charge par le repli python-ipmi.",
+          "kg_key": "Optionnel. Utilisé par l'add-on ipmi-server, et par python-ipmi lorsque le protocole IPMI est IPMI 2.0. Ignoré par python-ipmi en IPMI 1.5.",
+          "native_protocol": "Utilisé uniquement lorsque l'intégration communique directement avec le BMC (sans add-on). IPMI 1.5 est la valeur par défaut, identique aux versions précédentes. Choisissez IPMI 2.0 si le BMC refuse les connexions IPMI 1.5 (par exemple certaines cartes ASRock Rack).",
+          "native_cipher_suite": "auto essaie la suite 17, puis la 3. Choisissez une suite fixe (souvent 3) si la connexion s'ouvre mais que les requêtes expirent ensuite. Ignoré en IPMI 1.5.",
           "ipmi_server_host": "Sous Home Assistant OS, utilisez le nom d'hôte de l'add-on, pas localhost.",
           "addon_interface": "Généralement lanplus. auto laisse ipmitool décider.",
           "addon_extra_params": "Arguments ipmitool optionnels (par ex. suite de chiffrement).",
@@ -179,6 +187,25 @@
       "power_cycle": "Redémarrer",
       "power_reset": "Réinitialisation d'alimentation",
       "soft_shutdown": "Arrêt (logiciel)"
+    }
+  },
+  "selector": {
+    "native_protocol": {
+      "options": {
+        "rmcp": "IPMI 1.5 (RMCP)",
+        "rmcpplus": "IPMI 2.0 (RMCP+)"
+      }
+    },
+    "native_cipher_suite": {
+      "options": {
+        "auto": "auto (17, puis 3)",
+        "1": "1",
+        "2": "2",
+        "3": "3",
+        "15": "15",
+        "16": "16",
+        "17": "17"
+      }
     }
   }
 }

@@ -29,6 +29,8 @@ from .const import (
     CONF_IGNORE_CHECKSUM_ERRORS,
     CONF_IPMI_SERVER_HOST,
     CONF_KG_KEY,
+    CONF_NATIVE_CIPHER_SUITE,
+    CONF_NATIVE_PROTOCOL,
     CONF_PRIVILEGE_LEVEL,
     CONF_CREATE_ENERGY_SENSORS,
     CONF_MINIMAL_IPMI,
@@ -39,6 +41,8 @@ from .const import (
     COORDINATOR,
     DEFAULT_BACKEND_PREFERENCE,
     DEFAULT_KG_KEY,
+    DEFAULT_NATIVE_CIPHER_SUITE,
+    DEFAULT_NATIVE_PROTOCOL,
     DEFAULT_PRIVILEGE_LEVEL,
     DEFAULT_CREATE_ENERGY_SENSORS,
     DEFAULT_SCAN_INTERVAL,
@@ -181,6 +185,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             "kg_key": config.get(CONF_KG_KEY, DEFAULT_KG_KEY),
             "privilege_level": config.get(
                 CONF_PRIVILEGE_LEVEL, DEFAULT_PRIVILEGE_LEVEL
+            ),
+            CONF_NATIVE_PROTOCOL: config.get(
+                CONF_NATIVE_PROTOCOL, DEFAULT_NATIVE_PROTOCOL
+            ),
+            CONF_NATIVE_CIPHER_SUITE: config.get(
+                CONF_NATIVE_CIPHER_SUITE, DEFAULT_NATIVE_CIPHER_SUITE
             ),
             "ipmi_server_host": ipmi_server_host,
             "addon_port": config.get(CONF_ADDON_PORT),
@@ -338,6 +348,16 @@ async def async_migrate_entry(hass, config_entry: ConfigEntry):
         new_options[CONF_MINIMAL_IPMI] = False
         hass.config_entries.async_update_entry(
             config_entry, options=new_options, minor_version=9, version=2
+        )
+
+    # Migrate to version 2.10 - native python-ipmi protocol / cipher suite
+    # (defaults = IPMI 1.5, the previous hard-coded behavior)
+    if config_entry.version == 2 and config_entry.minor_version < 10:
+        new = {**config_entry.data}
+        new.setdefault(CONF_NATIVE_PROTOCOL, DEFAULT_NATIVE_PROTOCOL)
+        new.setdefault(CONF_NATIVE_CIPHER_SUITE, DEFAULT_NATIVE_CIPHER_SUITE)
+        hass.config_entries.async_update_entry(
+            config_entry, data=new, minor_version=10, version=2
         )
 
     _LOGGER.debug(

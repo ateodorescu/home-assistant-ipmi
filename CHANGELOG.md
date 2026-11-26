@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Optional **IPMI 2.0 (RMCP+)** for the native python-ipmi connection, with a configurable **cipher suite** ([#100](https://github.com/ateodorescu/home-assistant-ipmi/issues/100)). Set under advanced setup / **Reconfigure**: *IPMI protocol (python-ipmi)* and *Cipher suite (IPMI 2.0 only)*. Fixes BMCs that reject IPMI 1.5 logins, such as the ASRock Rack X470D4U (use IPMI 2.0 with cipher suite 3)
+- The **Kg key** is now used by python-ipmi when IPMI 2.0 is selected
+
+### Changed
+
+- Requires `python-ipmi>=0.6.1` (first release with RMCP+ support)
+- Config entry version 2.10: existing entries get `native_protocol=rmcp` (IPMI 1.5) and `native_cipher_suite=auto`, so nothing changes unless you opt in. The addon path is unaffected
+
 ## 1.22.3 — 2026-09-15
 
 ### Fixed
