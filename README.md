@@ -76,6 +76,7 @@ Each configured server (unique alias + BMC host/port) can expose:
 Integration options (Configure) and advanced setup / reconfigure:
 
 - **Scan interval** (seconds) — coordinator poll period (options only)
+- **Scan interval while powered off** (seconds) — poll period while the server reports power off, for example to poll every 15 s while it runs and every 10 minutes while it is off (options only; 0 to 3600, default 0 = same as the scan interval, so nothing changes unless you set it; values below 10 count as 10). The integration switches back to the normal scan interval on the first poll that sees power on, and power buttons/switch trigger an immediate poll. A failed poll keeps the current interval. To control polling entirely from automations instead, turn off *Enable polling for updates* in the entry's system options and call `homeassistant.update_entity` on any IPMI entity.
 - **Sensor types to discover** — which groups are created for *newly discovered* sensors (default: all)
 - **Create energy sensors from power readings** — kWh sensors for the Energy dashboard (default: on; disable if you only want raw power)
 - **Power switch off delay** (seconds) — after soft shutdown, keep the power switch off while the OS stops (default: 60; set to 0 to follow live BMC state immediately; does not affect the State sensor)

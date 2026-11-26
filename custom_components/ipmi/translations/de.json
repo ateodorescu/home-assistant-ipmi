@@ -160,6 +160,7 @@
         "description": "Filter gelten nur für neu entdeckte Sensoren. Bestehende Entitäten bleiben unverändert, bis der Eintrag nach Aktivieren eines Typs neu geladen wird.",
         "data": {
           "scan_interval": "Scan-Intervall (Sekunden)",
+          "scan_interval_off": "Scan-Intervall bei ausgeschaltetem Server (Sekunden)",
           "sensor_types": "Zu entdeckende Sensortypen",
           "backend_preference": "Bevorzugtes Verbindungs-Backend",
           "create_energy_sensors": "Energiesensoren aus Leistungswerten erstellen",
@@ -167,6 +168,7 @@
           "power_off_delay": "Verzögerung Schalter Aus (Sekunden)"
         },
         "data_description": {
+          "scan_interval_off": "Wie oft abgefragt wird, solange der Server ausgeschaltet ist. 0 = wie das Scan-Intervall (Standard). Werte unter 10 werden als 10 behandelt. Sobald eine Abfrage eingeschalteten Strom meldet, gilt wieder das normale Intervall.",
           "sensor_types": "Nur ausgewählte Typen werden für neu entdeckte Sensoren angelegt. Standard entspricht dem bisherigen Verhalten (alle Typen).",
           "backend_preference": "auto = zuerst Addon, dann RMCP (bisheriges Verhalten). addon = nur Addon. rmcp = nur python-ipmi (keine Addon-Anfragen). Warnung: der send_command-Dienst benötigt das Addon und funktioniert nicht mit rmcp.",
           "create_energy_sensors": "Erfordert Leistung in den Sensortypen. Jeder Leistungssensor erhält einen kWh-Energiesensor (standardmäßig aktiv). Energie-Entitäten sind nicht verfügbar, wenn Leistung nicht überwacht wird, die Option aus ist oder der Leistungssensor deaktiviert ist.",

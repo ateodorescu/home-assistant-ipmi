@@ -41,6 +41,7 @@ from .const import (
     CONF_NATIVE_CIPHER_SUITE,
     CONF_NATIVE_PROTOCOL,
     CONF_PRIVILEGE_LEVEL,
+    CONF_SCAN_INTERVAL_OFF,
     CONF_SENSOR_TYPES,
     DEFAULT_ADDON_PORT,
     DEFAULT_ALIAS,
@@ -59,6 +60,9 @@ from .const import (
     DEFAULT_PORT,
     DEFAULT_PRIVILEGE_LEVEL,
     DEFAULT_SCAN_INTERVAL,
+    DEFAULT_SCAN_INTERVAL_OFF,
+    MAX_SCAN_INTERVAL_OFF,
+    MIN_SCAN_INTERVAL,
     DEFAULT_SENSOR_TYPES,
     DEFAULT_USERNAME,
     DOMAIN,
@@ -316,7 +320,12 @@ def _options_schema(
             vol.Optional(
                 CONF_SCAN_INTERVAL,
                 default=defaults.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
-            ): vol.All(vol.Coerce(int), vol.Clamp(min=10, max=300)),
+            ): vol.All(vol.Coerce(int), vol.Clamp(min=MIN_SCAN_INTERVAL, max=300)),
+            vol.Optional(
+                CONF_SCAN_INTERVAL_OFF,
+                default=defaults.get(CONF_SCAN_INTERVAL_OFF, DEFAULT_SCAN_INTERVAL_OFF),
+            # 0 = same as scan interval; 1-9 are raised to MIN_SCAN_INTERVAL at runtime.
+            ): vol.All(vol.Coerce(int), vol.Range(min=0, max=MAX_SCAN_INTERVAL_OFF)),
             vol.Optional(
                 CONF_BACKEND_PREFERENCE,
                 default=defaults.get(CONF_BACKEND_PREFERENCE, DEFAULT_BACKEND_PREFERENCE),

@@ -169,12 +169,14 @@
         "description": "篩選條件僅套用於新探索到的感測器。啟用某個類型後，現有實體在重新載入此項目之前不會變更。",
         "data": {
           "scan_interval": "掃描間隔（秒）",
+          "scan_interval_off": "關機時的掃描間隔（秒）",
           "sensor_types": "要探索的感測器類型",
           "backend_preference": "連線後端偏好",
           "create_energy_sensors": "依電源讀數建立能源感測器",
           "power_off_delay": "電源開關關閉延遲（秒）"
         },
         "data_description": {
+          "scan_interval_off": "伺服器回報關機時的輪詢頻率。0 表示與掃描間隔相同（預設）。小於 10 的值以 10 處理。一旦輪詢偵測到開機，立即恢復正常間隔。",
           "sensor_types": "僅會為新探索到的感測器建立所選類型。若為功能有限的 BMC（例如 Sipeed NanoKVM），可留空以僅監控電源。",
           "backend_preference": "auto = 先嘗試附加元件，再嘗試 RMCP（歷來的預設值）。addon = 僅使用附加元件。rmcp = 僅使用 python-ipmi（略過附加元件探測）。警告：send_command 服務需要附加元件，使用 rmcp 時將無法運作。",
           "create_energy_sensors": "感測器類型中必須包含電源。每個探索到的電源感測器也會取得一個 kWh 能源感測器，供能源儀表板使用（預設啟用）。若未監控電源、此選項已關閉，或電源感測器實體已停用，能源實體將無法使用。",
