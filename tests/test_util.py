@@ -828,3 +828,31 @@ class TestDcmiPowerReadingSensors:
             "average_power_reading_over_sample_period": 143,
             "sampling_period": 1,
         }
+
+
+class TestEffectiveScanInterval:
+    def test_power_on_uses_scan_interval(self) -> None:
+        assert util.effective_scan_interval(30, 600, True) == 30
+
+    def test_power_off_uses_off_interval(self) -> None:
+        assert util.effective_scan_interval(30, 600, False) == 600
+
+    def test_unknown_power_uses_scan_interval(self) -> None:
+        assert util.effective_scan_interval(30, 600, None) == 30
+
+    @pytest.mark.parametrize("off", [0, None, "", "bad", -5])
+    def test_disabled_or_invalid_off_keeps_scan_interval(self, off) -> None:
+        assert util.effective_scan_interval(60, off, False) == 60
+
+    def test_default_matches_historical_single_interval(self) -> None:
+        assert util.effective_scan_interval(60) == 60
+        assert util.effective_scan_interval(60, power_on=False) == 60
+
+    def test_off_interval_below_minimum_is_raised(self) -> None:
+        assert util.effective_scan_interval(30, 5, False) == 10
+
+    def test_scan_interval_below_minimum_is_raised(self) -> None:
+        assert util.effective_scan_interval(3, 0, True) == 10
+
+    def test_string_values_are_coerced(self) -> None:
+        assert util.effective_scan_interval("20", "120", False) == 120

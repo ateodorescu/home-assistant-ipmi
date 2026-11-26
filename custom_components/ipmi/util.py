@@ -149,6 +149,34 @@ def addon_has_capability(capabilities: set[str], name: str) -> bool:
     return name in capabilities
 
 
+def effective_scan_interval(
+    scan_interval: Any,
+    scan_interval_off: Any = 0,
+    power_on: bool | None = None,
+    minimum: int = 10,
+) -> int:
+    """Seconds until the next poll, based on the last known chassis power state.
+
+    ``scan_interval_off`` applies only when the chassis is known to be off and the
+    value is positive; 0, missing or invalid values keep ``scan_interval`` (the
+    historical single-interval behavior). Unknown power state uses ``scan_interval``.
+    """
+    try:
+        base = int(scan_interval)
+    except (TypeError, ValueError):
+        base = minimum
+    base = max(base, minimum)
+    if power_on is not False:
+        return base
+    try:
+        off = int(scan_interval_off or 0)
+    except (TypeError, ValueError):
+        return base
+    if off <= 0:
+        return base
+    return max(off, minimum)
+
+
 def normalize_options(config: Mapping[str, Any]) -> dict[str, Any]:
     """Normalize options; legacy minimal_ipmi maps to an empty sensor_types list."""
     normalized = dict(config)

@@ -63,6 +63,11 @@ BACKEND_NONE = "none"
 
 COORDINATOR = "coordinator"
 DEFAULT_SCAN_INTERVAL = 60
+# Poll interval while the chassis reports power off. 0 = same as scan interval.
+CONF_SCAN_INTERVAL_OFF = "scan_interval_off"
+DEFAULT_SCAN_INTERVAL_OFF = 0
+MIN_SCAN_INTERVAL = 10
+MAX_SCAN_INTERVAL_OFF = 3600
 # DEFAULT_SCAN_INTERVAL = 10
 SERVERS = "servers"
 DISPATCHERS = "dispatchers"

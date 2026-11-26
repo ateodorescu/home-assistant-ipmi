@@ -160,6 +160,7 @@
         "description": "Les filtres s'appliquent uniquement aux nouveaux capteurs découverts. Les entités existantes restent inchangées jusqu'au rechargement de l'entrée après activation d'un type.",
         "data": {
           "scan_interval": "Intervalle de balayage en secondes",
+          "scan_interval_off": "Intervalle de balayage serveur éteint (secondes)",
           "sensor_types": "Types de capteurs à découvrir",
           "backend_preference": "Préférence de backend de connexion",
           "create_energy_sensors": "Créer des capteurs d'énergie à partir de la puissance",
@@ -167,6 +168,7 @@
           "power_off_delay": "Délai d'arrêt de l'interrupteur (secondes)"
         },
         "data_description": {
+          "scan_interval_off": "Fréquence d'interrogation tant que le serveur est éteint. 0 = identique à l'intervalle de balayage (par défaut). Les valeurs inférieures à 10 sont traitées comme 10. L'intervalle normal reprend dès qu'une interrogation détecte le serveur allumé.",
           "sensor_types": "Seuls les types sélectionnés sont créés pour les nouveaux capteurs. Par défaut, comportement précédent (tous les types).",
           "backend_preference": "auto = addon d'abord puis RMCP (comportement historique). addon = addon uniquement. rmcp = python-ipmi uniquement (sans sondage addon). Avertissement : le service send_command nécessite l'addon et ne fonctionne pas avec rmcp.",
           "create_energy_sensors": "Nécessite la puissance dans les types de capteurs. Chaque capteur de puissance reçoit un capteur d'énergie kWh (activé par défaut). Les entités énergie sont indisponibles si la puissance n'est pas surveillée, si l'option est désactivée ou si le capteur de puissance est désactivé.",
