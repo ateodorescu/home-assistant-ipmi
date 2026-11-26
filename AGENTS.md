@@ -74,6 +74,8 @@ Chassis commands (`power_on`, `soft_shutdown`, …) run through `_chassis_comman
 
 ## Compatibility rules
 
+- `send_command` is **admin-only** (#89): the handler checks the caller with `util.service_caller_denial` and raises `Unauthorized` / `UnknownUser`. Keep that check; don't switch to `async_register_admin_service` unless the minimum supported HA is 2025.6+ (older versions reject `supports_response` there).
+
 - **Never change** existing entity `unique_id` strings (`{entry_id}_{alias}_{key}` / switch form).
 - **Never remove** State sensor, device actions, or `send_command` without an explicit breaking-change request.
 - Config entry `data` / `options`: additive keys only; migrate with defaults matching prior behavior.

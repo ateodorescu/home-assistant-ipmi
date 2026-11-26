@@ -114,6 +114,8 @@ Alternatively, you can add Home Assistant's **Riemann sum integral** helper on a
 
 Sends a custom ipmitool-style command through the addon HTTP API only (not available on RMCP-only connections). Placeholders `$host$`, `$port$`, `$username$`, and `$password$` are substituted. If the addon is unreachable or backend preference is `rmcp`, the service returns a clear error (or an empty message when *Ignore errors* is enabled).
 
+Only **admin** users can call `send_command`, because it runs any ipmitool command with the stored BMC credentials. Calls from non-admin users (for example a dashboard button or a script run by a non-admin) fail with *Unauthorized*. Automations fired by triggers run without a user and are not affected ([#89](https://github.com/ateodorescu/home-assistant-ipmi/issues/89)).
+
 The addon API uses GET with query parameters. POST is only used if it has already proven to return a successful payload (current addon builds ignore JSON bodies).
 
 ### Power control in automations

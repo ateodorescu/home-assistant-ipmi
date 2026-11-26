@@ -17,6 +17,7 @@ from homeassistant.const import (
     CONF_USERNAME,
 )
 from homeassistant.core import HomeAssistant, ServiceCall, ServiceResponse, SupportsResponse
+from homeassistant.exceptions import Unauthorized, UnknownUser
 from homeassistant.helpers import config_validation as cv, device_registry as dr
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
@@ -60,7 +61,14 @@ from .const import (
 )
 from .helpers import IpmiData, get_ipmi_data, get_ipmi_server
 from .server import IpmiDeviceInfo, IpmiServer
-from .util import as_str_list, effective_sensor_types, format_entry_unique_id, normalize_options
+from .util import (
+    SERVICE_CALLER_UNKNOWN,
+    as_str_list,
+    effective_sensor_types,
+    format_entry_unique_id,
+    normalize_options,
+    service_caller_denial,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -117,7 +125,19 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     hass.data.setdefault(DOMAIN, IpmiData(servers={}, dispatchers={}))
 
     async def handle_send_command(call: ServiceCall) -> ServiceResponse:
-        """Handle the service call."""
+        """Handle the service call (admin users only)."""
+        # send_command runs arbitrary ipmitool commands with the stored BMC
+        # credentials, so it is restricted to admins (#89). Same rule as Home
+        # Assistant's async_register_admin_service, done inline because that
+        # helper only accepts supports_response from HA 2025.6.
+        user_id = call.context.user_id
+        user = await hass.auth.async_get_user(user_id) if user_id else None
+        denial = service_caller_denial(user_id, user)
+        if denial == SERVICE_CALLER_UNKNOWN:
+            raise UnknownUser(context=call.context)
+        if denial is not None:
+            raise Unauthorized(context=call.context)
+
         server = get_ipmi_server(hass, call.data.get("server"))
         message = await hass.async_add_executor_job(
             server[IPMI_DATA].send_command,

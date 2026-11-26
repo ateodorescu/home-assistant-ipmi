@@ -27,6 +27,26 @@ class TestFormatEntryUniqueId:
         )
 
 
+class TestServiceCallerDenial:
+    """send_command is admin-only (#89)."""
+
+    def test_no_user_is_allowed(self) -> None:
+        # Automations fired by triggers and internal calls carry no user.
+        assert util.service_caller_denial(None, None) is None
+        assert util.service_caller_denial("", None) is None
+
+    def test_admin_is_allowed(self) -> None:
+        admin = MagicMock(is_admin=True)
+        assert util.service_caller_denial("user-1", admin) is None
+
+    def test_non_admin_is_refused(self) -> None:
+        user = MagicMock(is_admin=False)
+        assert util.service_caller_denial("user-1", user) == util.SERVICE_CALLER_NOT_ADMIN
+
+    def test_unknown_user_is_refused(self) -> None:
+        assert util.service_caller_denial("gone", None) == util.SERVICE_CALLER_UNKNOWN
+
+
 class TestAsStrList:
     def test_list_passthrough(self) -> None:
         assert util.as_str_list(["temperature", "fan"]) == ["temperature", "fan"]

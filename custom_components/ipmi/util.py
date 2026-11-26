@@ -18,6 +18,28 @@ _AUTH_ERROR_MARKERS = (
     "invalid user",
 )
 
+# Outcomes of ``service_caller_denial`` (admin-only services).
+SERVICE_CALLER_UNKNOWN = "unknown_user"
+SERVICE_CALLER_NOT_ADMIN = "not_admin"
+
+
+def service_caller_denial(user_id: str | None, user: Any) -> str | None:
+    """Return why a caller may not use an admin-only service, or None if allowed.
+
+    Mirrors Home Assistant's ``async_register_admin_service`` check: calls with no
+    user (automations fired by triggers, internal calls) are allowed, calls from a
+    user that no longer exists are refused, and only admin users are allowed.
+    ``user`` is the object returned by ``hass.auth.async_get_user(user_id)``.
+    """
+    if not user_id:
+        return None
+    if user is None:
+        return SERVICE_CALLER_UNKNOWN
+    if not getattr(user, "is_admin", False):
+        return SERVICE_CALLER_NOT_ADMIN
+    return None
+
+
 # IPMI sensor type codes (Table 42-3) → integration sensor groups.
 _RMCP_SENSOR_TYPE_TO_CATEGORY: dict[int, str] = {
     0x01: "temperature",
