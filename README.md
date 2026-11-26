@@ -26,6 +26,7 @@ If the addon / standalone HTTP API is reachable it is used first; otherwise the 
 |---|---|---|
 | Temperature / fan / voltage sensors | yes | yes |
 | Current / power / time sensors | yes (when BMC exposes them) | yes when SDR type/units map (Amps / Watts / seconds) |
+| DCMI power reading (`dcmi power reading`) | yes | yes (since 1.23.0) |
 | Chassis power commands | yes | yes |
 | Custom `send_command` service | yes only | no |
 | Kg key (RMCP+) | yes | ignored (warning logged) |

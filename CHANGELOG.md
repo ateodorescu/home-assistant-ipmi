@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.23.0 — Unreleased
+
+### Added
+
+- DCMI power readings on the python-ipmi (RMCP) path, for BMCs that only report power through `ipmitool dcmi power reading` and not as SDR sensors, such as Supermicro X11 ([#94](https://github.com/ateodorescu/home-assistant-ipmi/issues/94)). Installs without the addon (for example Docker) now get the same **Instantaneous power reading**, **Minimum/Maximum during sampling period** and **Average power reading over sample period** sensors (plus **Sampling period** when the `time` sensor type is selected) that the addon already provides, with the same entity keys, so energy sensors work too. The reading is best effort: it is only requested when the `power` sensor type is selected, errors never fail the poll, and BMCs that reject the command are not asked again until the integration reloads. SDR sensors with the same key take precedence, and the addon path is unchanged.
+
 ## 1.22.3 — 2026-09-15
 
 ### Fixed

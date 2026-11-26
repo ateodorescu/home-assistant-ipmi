@@ -250,3 +250,51 @@ def addon_action_succeeded(response: dict[str, Any] | None) -> bool:
 
 class IpmiChassisCommandError(RuntimeError):
     """Raised when a chassis power command fails on all available backends."""
+
+
+# DCMI "Get Power Reading" fields → sensor names. The names match the labels
+# printed by ``ipmitool dcmi power reading``, which is what the addon parses,
+# so both backends produce the same sensor keys (and entity unique IDs).
+DCMI_POWER_READING_FIELDS: tuple[tuple[str, str], ...] = (
+    ("current_power", "Instantaneous power reading"),
+    ("minimum_power", "Minimum during sampling period"),
+    ("maximum_power", "Maximum during sampling period"),
+    ("average_power", "Average power reading over sample period"),
+)
+DCMI_SAMPLING_PERIOD_NAME = "Sampling period"
+
+
+def dcmi_power_reading_sensors(
+    reading: Any,
+    sensor_types: list[str] | set[str],
+) -> list[tuple[str, str, str, Any]]:
+    """Map a python-ipmi DCMI power reading to sensor entries.
+
+    Returns ``(category, sensor_id, name, value)`` tuples. Power values are in
+    watts; the sampling period is converted from milliseconds to seconds (as
+    ipmitool prints it). Fields missing from the response are skipped.
+    """
+    entries: list[tuple[str, str, str, Any]] = []
+    if reading is None:
+        return entries
+
+    if "power" in sensor_types:
+        for attr, name in DCMI_POWER_READING_FIELDS:
+            value = getattr(reading, attr, None)
+            if value is None:
+                continue
+            entries.append(("power", generate_sensor_id(name), name, value))
+
+    if "time" in sensor_types:
+        period_ms = getattr(reading, "period", None)
+        if period_ms is not None:
+            entries.append(
+                (
+                    "time",
+                    generate_sensor_id(DCMI_SAMPLING_PERIOD_NAME),
+                    DCMI_SAMPLING_PERIOD_NAME,
+                    int(period_ms) // 1000,
+                )
+            )
+
+    return entries

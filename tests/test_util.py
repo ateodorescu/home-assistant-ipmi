@@ -634,3 +634,87 @@ class TestIpmiServerLogic:
         srv.add_known_sensor("temp_cpu")
         self._poll(srv, two, announce)
         assert announce.call_count == 2
+
+
+class TestDcmiPowerReadingSensors:
+    @staticmethod
+    def _reading(**overrides):
+        from types import SimpleNamespace
+
+        values = {
+            "current_power": 142,
+            "minimum_power": 10,
+            "maximum_power": 504,
+            "average_power": 143,
+            "period": 1000,
+            "reading_state": 0x40,
+        }
+        values.update(overrides)
+        return SimpleNamespace(**values)
+
+    def test_power_keys_match_addon_ipmitool_labels(self) -> None:
+        entries = util.dcmi_power_reading_sensors(self._reading(), ["power"])
+        assert entries == [
+            ("power", "instantaneous_power_reading", "Instantaneous power reading", 142),
+            (
+                "power",
+                "minimum_during_sampling_period",
+                "Minimum during sampling period",
+                10,
+            ),
+            (
+                "power",
+                "maximum_during_sampling_period",
+                "Maximum during sampling period",
+                504,
+            ),
+            (
+                "power",
+                "average_power_reading_over_sample_period",
+                "Average power reading over sample period",
+                143,
+            ),
+        ]
+
+    def test_sampling_period_in_seconds_when_time_selected(self) -> None:
+        entries = util.dcmi_power_reading_sensors(
+            self._reading(period=5000), ["power", "time"]
+        )
+        assert entries[-1] == ("time", "sampling_period", "Sampling period", 5)
+
+    def test_respects_sensor_type_filter(self) -> None:
+        assert util.dcmi_power_reading_sensors(self._reading(), ["temperature"]) == []
+        entries = util.dcmi_power_reading_sensors(self._reading(), ["time"])
+        assert [e[0] for e in entries] == ["time"]
+
+    def test_none_reading_and_missing_fields(self) -> None:
+        assert util.dcmi_power_reading_sensors(None, ["power", "time"]) == []
+        entries = util.dcmi_power_reading_sensors(
+            self._reading(minimum_power=None, period=None), ["power", "time"]
+        )
+        assert [e[1] for e in entries] == [
+            "instantaneous_power_reading",
+            "maximum_during_sampling_period",
+            "average_power_reading_over_sample_period",
+        ]
+
+    def test_parses_real_python_ipmi_response(self) -> None:
+        pytest.importorskip("pyipmi.msgs.dcmi")
+        from pyipmi.msgs import decode_message, dcmi
+
+        rsp = dcmi.GetPowerReadingRsp()
+        # CC, group ext 0xDC, current=142, min=10, max=504, avg=143,
+        # timestamp, period=1000 ms, state=0x40 (measurement active).
+        data = bytes(
+            [0x00, 0xDC, 142, 0, 10, 0, 0xF8, 0x01, 143, 0, 0, 0, 0, 0]
+            + [0xE8, 0x03, 0, 0, 0x40]
+        )
+        decode_message(rsp, data)
+        entries = util.dcmi_power_reading_sensors(rsp, ["power", "time"])
+        assert dict((e[1], e[3]) for e in entries) == {
+            "instantaneous_power_reading": 142,
+            "minimum_during_sampling_period": 10,
+            "maximum_during_sampling_period": 504,
+            "average_power_reading_over_sample_period": 143,
+            "sampling_period": 1,
+        }

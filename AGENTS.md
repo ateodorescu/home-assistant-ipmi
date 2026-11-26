@@ -60,6 +60,7 @@ Addon HTTP uses **GET** (query params; supported by current addons). POST is onl
 |---|---|---|
 | Sensors (temp/fan/voltage) | yes | yes |
 | Current / power / time | yes | when SDR type/units map |
+| DCMI power reading | yes | yes (best effort, `_add_rmcp_dcmi_power`; same keys as addon) |
 | Chassis power commands | yes | yes |
 | Custom `send_command` | yes only | no |
 | Kg key (RMCP+) | yes | ignored (warning logged) |
