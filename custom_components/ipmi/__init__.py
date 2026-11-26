@@ -36,6 +36,7 @@ from .const import (
     CONF_CREATE_ENERGY_SENSORS,
     CONF_MINIMAL_IPMI,
     CONF_POWER_OFF_DELAY,
+    CONF_SCAN_INTERVAL_OFF,
     CONF_SENSOR_TYPES,
     DEFAULT_MINIMAL_IPMI,
     DEFAULT_POWER_OFF_DELAY,
@@ -47,6 +48,8 @@ from .const import (
     DEFAULT_PRIVILEGE_LEVEL,
     DEFAULT_CREATE_ENERGY_SENSORS,
     DEFAULT_SCAN_INTERVAL,
+    DEFAULT_SCAN_INTERVAL_OFF,
+    MIN_SCAN_INTERVAL,
     DEFAULT_SENSOR_TYPES,
     DEFAULT_TIMEOUT,
     DISPATCHERS,
@@ -64,6 +67,7 @@ from .server import IpmiDeviceInfo, IpmiServer
 from .util import (
     SERVICE_CALLER_UNKNOWN,
     as_str_list,
+    effective_scan_interval,
     effective_sensor_types,
     format_entry_unique_id,
     normalize_options,
@@ -188,6 +192,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         ipmi_server_host = "http://localhost"
 
     scan_interval = options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+    scan_interval_off = options.get(CONF_SCAN_INTERVAL_OFF, DEFAULT_SCAN_INTERVAL_OFF)
     backend_preference = options.get(
         CONF_BACKEND_PREFERENCE, DEFAULT_BACKEND_PREFERENCE
     )
@@ -222,7 +227,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             CONF_MINIMAL_IPMI: options.get(CONF_MINIMAL_IPMI, DEFAULT_MINIMAL_IPMI),
         },
     )
-    coordinator = IpmiCoordinator(hass, scan_interval, data)
+    coordinator = IpmiCoordinator(hass, scan_interval, data, scan_interval_off)
 
     # Fetch initial data so we have data when entities subscribe
     await coordinator.async_config_entry_first_refresh()
@@ -390,7 +395,7 @@ async def async_migrate_entry(hass, config_entry: ConfigEntry):
 
 
 class IpmiCoordinator(DataUpdateCoordinator):
-    def __init__(self, hass, scan_interval, ipmiData):
+    def __init__(self, hass, scan_interval, ipmiData, scan_interval_off=0):
         """Initialize IPMI coordinator."""
         super().__init__(
             hass,
@@ -401,6 +406,27 @@ class IpmiCoordinator(DataUpdateCoordinator):
             update_interval=timedelta(seconds=scan_interval),
         )
         self.ipmiData = ipmiData
+        self._scan_interval = scan_interval
+        # 0 = poll at scan_interval regardless of power state (historical behavior).
+        self._scan_interval_off = scan_interval_off
+
+    def _apply_power_state_interval(self, power_on: bool | None) -> None:
+        """Use the powered-off interval while the chassis is off, if configured."""
+        seconds = effective_scan_interval(
+            self._scan_interval,
+            self._scan_interval_off,
+            power_on,
+            minimum=MIN_SCAN_INTERVAL,
+        )
+        new_interval = timedelta(seconds=seconds)
+        if new_interval != self.update_interval:
+            _LOGGER.debug(
+                "Chassis power %s for %s; next polls every %ss",
+                "on" if power_on else "off",
+                self.ipmiData.name,
+                seconds,
+            )
+            self.update_interval = new_interval
 
     async def _async_update_data(self) -> IpmiDeviceInfo:
         """Fetch data from IPMI server."""
@@ -415,4 +441,5 @@ class IpmiCoordinator(DataUpdateCoordinator):
                         entry.async_start_reauth(self.hass)
                 raise UpdateFailed("Error fetching IPMI state")
 
+            self._apply_power_state_interval(self.ipmiData.device_info.power_on)
             return self.ipmiData.device_info

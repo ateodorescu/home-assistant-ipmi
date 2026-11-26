@@ -67,6 +67,8 @@ async def async_get_config_entry_diagnostics(
                 if coordinator.update_interval
                 else None
             ),
+            "scan_interval": getattr(coordinator, "_scan_interval", None),
+            "scan_interval_off": getattr(coordinator, "_scan_interval_off", None),
         },
         "device": device_info.device if device_info else None,
         "power_on": device_info.power_on if device_info else None,
