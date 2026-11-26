@@ -13,6 +13,11 @@
 
 - The `ipmi.send_command` service is now limited to **admin** users ([#89](https://github.com/ateodorescu/home-assistant-ipmi/issues/89)). It runs any ipmitool command through the addon with the stored BMC username and password, so non-admin users could previously power servers off, change BMC users or send the credentials to another host. Calls from non-admin users now fail with *Unauthorized*; this includes dashboard buttons and scripts that a non-admin user runs. Admin users and automations fired by triggers (which run without a user) work as before. Uses the same check as Home Assistant's admin-only services and works on every supported Home Assistant version
 
+### Security
+
+- The BMC password and Kg key are no longer sent in addon request URLs, where web server or reverse proxy access logs could record them ([#90](https://github.com/ateodorescu/home-assistant-ipmi/issues/90)). They are now sent in the `X-Ipmi-Password` / `X-Ipmi-Kg-Key` headers, and dropped from the query string once the addon reports its API version (ipmi-server 2.6 or newer). Older addon builds keep getting them in the query string too, so nothing changes for them; passwords with non-ASCII characters or leading/trailing spaces also keep the previous behavior. Diagnostics show which secrets (names only) are still sent in the query
+- Addon error messages logged by Home Assistant now also redact URL-encoded passwords (for example ones containing `@`, `&` or spaces)
+
 ### Changed
 
 - Requires `python-ipmi>=0.6.1` (first release with RMCP+ support)

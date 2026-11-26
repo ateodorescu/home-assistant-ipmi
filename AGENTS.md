@@ -56,6 +56,8 @@ Do not add code outside `custom_components/ipmi/` unless the task is docs, CI, t
 
 Addon HTTP uses **GET** (query params; supported by current addons). POST is only used after a successful probe.
 
+BMC secrets (`password`, `kg_key`) go in the `X-Ipmi-Password` / `X-Ipmi-Kg-Key` headers (read by ipmi-server 2.5.1+) and are dropped from the query string only after the addon reported `api_version` (2.6+); see `util.split_addon_secrets`. Values that are not header-safe (non-ASCII, control characters, leading/trailing whitespace) stay in the query. Do not put secrets back in URLs.
+
 | Capability | Addon / standalone | python-ipmi |
 |---|---|---|
 | Sensors (temp/fan/voltage) | yes | yes |
