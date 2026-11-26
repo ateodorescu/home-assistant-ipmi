@@ -8,6 +8,11 @@
 - The **Kg key** is now used by python-ipmi when IPMI 2.0 is selected
 - DCMI power readings on the python-ipmi (RMCP) path, for BMCs that only report power through `ipmitool dcmi power reading` and not as SDR sensors, such as Supermicro X11 ([#94](https://github.com/ateodorescu/home-assistant-ipmi/issues/94)). Installs without the addon (for example Docker) now get the same **Instantaneous power reading**, **Minimum/Maximum during sampling period** and **Average power reading over sample period** sensors (plus **Sampling period** when the `time` sensor type is selected) that the addon already provides, with the same entity keys, so energy sensors work too. The reading is best effort: it is only requested when the `power` sensor type is selected, errors never fail the poll, and BMCs that reject the command are not asked again until the integration reloads. SDR sensors with the same key take precedence, and the addon path is unchanged.
 
+### Security
+
+- The BMC password and Kg key are no longer sent in addon request URLs, where web server or reverse proxy access logs could record them ([#90](https://github.com/ateodorescu/home-assistant-ipmi/issues/90)). They are now sent in the `X-Ipmi-Password` / `X-Ipmi-Kg-Key` headers, and dropped from the query string once the addon reports its API version (ipmi-server 2.6 or newer). Older addon builds keep getting them in the query string too, so nothing changes for them; passwords with non-ASCII characters or leading/trailing spaces also keep the previous behavior. Diagnostics show which secrets (names only) are still sent in the query
+- Addon error messages logged by Home Assistant now also redact URL-encoded passwords (for example ones containing `@`, `&` or spaces)
+
 ### Changed
 
 - Requires `python-ipmi>=0.6.1` (first release with RMCP+ support)

@@ -148,6 +148,11 @@ ADDON_CAPABILITY_SENSOR_TYPES_FILTER = "sensor_types_filter"
 ADDON_CAPABILITY_RESILIENT_POLL = "resilient_poll"
 ADDON_META_PATH = "meta"
 
+# Addon request headers for BMC secrets (read by ipmi-server 2.5.1+). Keeping secrets
+# in headers instead of the query string keeps them out of HTTP access logs (#90).
+ADDON_PASSWORD_HEADER = "X-Ipmi-Password"
+ADDON_KG_KEY_HEADER = "X-Ipmi-Kg-Key"
+
 # Legacy option: prefer empty sensor_types (kept for config entry downgrade compatibility).
 CONF_MINIMAL_IPMI = "minimal_ipmi"
 DEFAULT_MINIMAL_IPMI = False

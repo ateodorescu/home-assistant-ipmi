@@ -172,6 +172,62 @@ class TestRedactConnectionSecrets:
         message = "connection refused"
         assert util.redact_connection_secrets(message) == message
 
+    def test_redacts_url_encoded_password(self) -> None:
+        # requests encodes query values with quote_plus; HTTPError text includes the URL.
+        message = "500 Server Error for url: http://x/?password=p%40ss+w%26rd&user=a"
+        assert (
+            util.redact_connection_secrets(message, "p@ss w&rd")
+            == "500 Server Error for url: http://x/?password=***&user=a"
+        )
+
+    def test_redacts_percent_encoded_space(self) -> None:
+        message = "http://x/?password=p%20w"
+        assert util.redact_connection_secrets(message, "p w") == "http://x/?password=***"
+
+
+class TestHeaderSafeSecret:
+    @pytest.mark.parametrize("value", ["s3cret", "p@ss w&rd!", "AABBCCDD", "a~b\\c'd"])
+    def test_printable_ascii_is_safe(self, value: str) -> None:
+        assert util.header_safe_secret(value) is True
+
+    @pytest.mark.parametrize(
+        "value",
+        [None, "", " leading", "trailing ", "tab\tin", "new\nline", "pässword", "密码"],
+    )
+    def test_other_values_are_not_safe(self, value: str | None) -> None:
+        assert util.header_safe_secret(value) is False
+
+
+class TestSplitAddonSecrets:
+    SECRETS = {
+        "password": ("X-Ipmi-Password", "s3cret"),
+        "kg_key": ("X-Ipmi-Kg-Key", "AABB"),
+    }
+
+    def test_unknown_addon_keeps_query_and_adds_headers(self) -> None:
+        query, headers = util.split_addon_secrets(self.SECRETS, headers_supported=False)
+        assert query == {"password": "s3cret", "kg_key": "AABB"}
+        assert headers == {"X-Ipmi-Password": "s3cret", "X-Ipmi-Kg-Key": "AABB"}
+
+    def test_supported_addon_uses_headers_only(self) -> None:
+        query, headers = util.split_addon_secrets(self.SECRETS, headers_supported=True)
+        assert query == {}
+        assert headers == {"X-Ipmi-Password": "s3cret", "X-Ipmi-Kg-Key": "AABB"}
+
+    def test_unsafe_secret_stays_in_query(self) -> None:
+        secrets = {"password": ("X-Ipmi-Password", "pässword")}
+        query, headers = util.split_addon_secrets(secrets, headers_supported=True)
+        assert query == {"password": "pässword"}
+        assert headers == {}
+
+    def test_empty_secrets_are_omitted(self) -> None:
+        secrets = {
+            "password": ("X-Ipmi-Password", ""),
+            "kg_key": ("X-Ipmi-Kg-Key", None),
+        }
+        assert util.split_addon_secrets(secrets, headers_supported=True) == ({}, {})
+        assert util.split_addon_secrets(secrets, headers_supported=False) == ({}, {})
+
 
 class TestLooksLikeAuthError:
     @pytest.mark.parametrize(

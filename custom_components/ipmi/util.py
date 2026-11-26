@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 import re
 from typing import Any
+from urllib.parse import quote, quote_plus
 
 _AUTH_ERROR_MARKERS = (
     "auth",
@@ -184,11 +185,52 @@ def redact_connection_secrets(
 ) -> str:
     """Remove password / kg key substrings from log-facing error text."""
     redacted = message
-    if password:
-        redacted = redacted.replace(str(password), "***")
-    if kg_key:
-        redacted = redacted.replace(str(kg_key), "***")
+    for secret in (password, kg_key):
+        if not secret:
+            continue
+        secret = str(secret)
+        # Raw value plus the URL-encoded forms that appear in request URLs.
+        for variant in (secret, quote_plus(secret), quote(secret, safe="")):
+            redacted = redacted.replace(variant, "***")
     return redacted
+
+
+def header_safe_secret(value: str | None) -> bool:
+    """Return True when a secret can be sent unchanged as an HTTP header value.
+
+    Only printable ASCII without leading/trailing whitespace qualifies: other
+    values would be re-encoded or rejected by ``requests``, so they keep using
+    the query string exactly as before.
+    """
+    if not value or not isinstance(value, str):
+        return False
+    return value.isascii() and value.isprintable() and value == value.strip()
+
+
+def split_addon_secrets(
+    secrets: Mapping[str, tuple[str, str | None]],
+    *,
+    headers_supported: bool,
+) -> tuple[dict[str, str], dict[str, str]]:
+    """Decide how to send addon secrets: ``(query_params, headers)``.
+
+    ``secrets`` maps a query field name to ``(header_name, value)``. Header-safe
+    values are always sent as headers (ignored by addons older than 2.5.1). They
+    are also kept in the query string unless ``headers_supported`` is True (the
+    addon reported ``api_version``, i.e. 2.6+, which reads the headers), so older
+    addons keep working unchanged.
+    """
+    query: dict[str, str] = {}
+    headers: dict[str, str] = {}
+    for field, (header, value) in secrets.items():
+        if not value:
+            continue
+        if header_safe_secret(value):
+            headers[header] = value
+            if headers_supported:
+                continue
+        query[field] = value
+    return query, headers
 
 
 def looks_like_auth_error(message: str | None) -> bool:

@@ -116,6 +116,8 @@ Sends a custom ipmitool-style command through the addon HTTP API only (not avail
 
 The addon API uses GET with query parameters. POST is only used if it has already proven to return a successful payload (current addon builds ignore JSON bodies).
 
+The BMC password and Kg key are sent in the `X-Ipmi-Password` / `X-Ipmi-Kg-Key` request headers rather than the URL, so they do not end up in HTTP access logs (for example a reverse proxy in front of the standalone addon). They are removed from the query string once the addon reports its API version (ipmi-server **2.6** or newer). Older addon builds, and passwords with non-ASCII characters or leading/trailing spaces, keep receiving them in the query string as before. A `$password$` placeholder in a `send_command` command is part of the command text and is still sent in the `params` query value.
+
 ### Power control in automations
 
 For scripts and automations, prefer **buttons** (`button.press`) or **device actions** over `switch.turn_on` / `switch.turn_off`:

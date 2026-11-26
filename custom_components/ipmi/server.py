@@ -18,7 +18,9 @@ from homeassistant.helpers.dispatcher import dispatcher_send
 
 from .const import (
     ADDON_FAILURE_SKIP_THRESHOLD,
+    ADDON_KG_KEY_HEADER,
     ADDON_META_PATH,
+    ADDON_PASSWORD_HEADER,
     ADDON_SKIP_SECONDS,
     BACKEND_ADDON,
     BACKEND_NONE,
@@ -53,6 +55,7 @@ from .util import (
     normalize_addon_sensor_groups,
     power_only_poll,
     redact_connection_secrets,
+    split_addon_secrets,
     update_addon_capabilities,
 )
 
@@ -186,20 +189,42 @@ class IpmiServer:
         """Return empty sensor buckets for all dynamic sensor types."""
         return {sensor_type: {} for sensor_type in SENSOR_TYPES}
 
+    def _addon_secret_parts(self) -> tuple[dict[str, str], dict[str, str]]:
+        """Return ``(query_params, headers)`` carrying the password and Kg key.
+
+        Secrets go in ``X-Ipmi-*`` headers so they stay out of access logs (#90).
+        They are only dropped from the query string once the addon has reported
+        ``api_version`` (ipmi-server 2.6+, which reads the headers); older addons
+        and secrets that are not header-safe keep the previous query behavior.
+        """
+        return split_addon_secrets(
+            {
+                "password": (ADDON_PASSWORD_HEADER, self._password),
+                "kg_key": (ADDON_KG_KEY_HEADER, self._kg_key),
+            },
+            headers_supported=self._addon_api_version is not None,
+        )
+
     def _addon_query_params(self, extra: dict[str, Any] | None = None) -> dict[str, Any]:
-        """Build addon request parameters (auth + optional extras)."""
+        """Build addon query parameters (auth + optional extras).
+
+        The password and Kg key are only included here when they cannot be sent
+        as headers to this addon; see ``_addon_secret_parts``.
+        """
+        secret_params, _headers = self._addon_secret_parts()
         params: dict[str, Any] = {
             "host": self._host,
             "port": self._port,
             "user": self._username,
-            "password": self._password,
         }
+        if "password" in secret_params:
+            params["password"] = secret_params["password"]
 
         if self._addon_interface is not None and self._addon_interface != "auto":
             params["interface"] = self._addon_interface
 
-        if self._kg_key:
-            params["kg_key"] = self._kg_key
+        if "kg_key" in secret_params:
+            params["kg_key"] = secret_params["kg_key"]
 
         if self._privilege_level:
             params["privilege_level"] = self._privilege_level
@@ -315,18 +340,21 @@ class IpmiServer:
             return None
 
         params = self._addon_query_params(extra)
+        _secret_params, headers = self._addon_secret_parts()
         url = self._addon_url
         if path is not None:
             url = f"{url}/{path}"
 
         _LOGGER.debug(
-            "Addon request url=%s host=%s port=%s user=%s path=%s post=%s",
+            "Addon request url=%s host=%s port=%s user=%s path=%s post=%s "
+            "secret_headers=%s",
             url,
             self._host,
             self._port,
             self._username,
             path,
             self._addon_use_post,
+            sorted(headers),
         )
 
         try:
@@ -335,6 +363,7 @@ class IpmiServer:
                     http_resp = requests.post(
                         url,
                         json=params,
+                        headers=headers,
                         timeout=(DEFAULT_HTTP_CONNECT_TIMEOUT, DEFAULT_HTTP_TIMEOUT),
                     )
                     if http_resp.status_code not in _POST_UNSUPPORTED_STATUSES:
@@ -356,6 +385,7 @@ class IpmiServer:
             http_resp = requests.get(
                 url,
                 params=params,
+                headers=headers,
                 timeout=(DEFAULT_HTTP_CONNECT_TIMEOUT, DEFAULT_HTTP_TIMEOUT),
             )
             http_resp.raise_for_status()

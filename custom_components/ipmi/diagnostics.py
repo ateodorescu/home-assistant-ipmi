@@ -51,6 +51,8 @@ async def async_get_config_entry_diagnostics(
             "addon_version": data.addon_version,
             "addon_api_version": getattr(data, "_addon_api_version", None),
             "addon_capabilities": sorted(data.addon_capabilities),
+            # Names only (never values): secrets still sent in the addon query string.
+            "addon_secrets_in_query": sorted(data._addon_secret_parts()[0]),
             "host": data._host,
             "port": data._port,
             "last_rmcp_error": data._last_rmcp_error,
