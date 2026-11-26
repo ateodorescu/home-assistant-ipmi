@@ -229,6 +229,60 @@ def validate_kg_key(value: str | None) -> str:
     return value.upper()
 
 
+# python-ipmi interface names for the native LAN connection.
+_NATIVE_RMCP = "rmcp"  # IPMI 1.5
+_NATIVE_RMCPPLUS = "rmcpplus"  # IPMI 2.0 (RMCP+)
+# RMCP+ cipher suites supported by python-ipmi.
+_RMCPPLUS_CIPHER_SUITES = (1, 2, 3, 15, 16, 17)
+
+
+def normalize_cipher_suite(value: Any) -> int | None:
+    """Return a fixed RMCP+ cipher suite id, or None for auto / unset.
+
+    Raises:
+        ValueError: if the value is set but not a supported cipher suite.
+    """
+    if value is None:
+        return None
+    text = str(value).strip().lower()
+    if text in ("", "auto"):
+        return None
+    try:
+        suite = int(text)
+    except ValueError as err:
+        raise ValueError(f"Unsupported cipher suite: {value}") from err
+    if suite not in _RMCPPLUS_CIPHER_SUITES:
+        raise ValueError(f"Unsupported cipher suite: {value}")
+    return suite
+
+
+def native_interface_args(
+    protocol: str | None,
+    cipher_suite: Any = None,
+    kg_key: str | None = None,
+) -> tuple[str, dict[str, Any]]:
+    """Return ``(interface_name, kwargs)`` for ``pyipmi.interfaces.create_interface``.
+
+    Anything other than ``"rmcpplus"`` (including a missing setting) returns the
+    historical IPMI 1.5 arguments unchanged, so existing entries keep working.
+    The cipher suite and Kg key only apply to RMCP+ (IPMI 2.0).
+    """
+    kwargs: dict[str, Any] = {
+        "slave_address": 0x81,
+        "host_target_address": 0x20,
+        "keep_alive_interval": 0,
+    }
+    if (protocol or "").strip().lower() != _NATIVE_RMCPPLUS:
+        return _NATIVE_RMCP, kwargs
+
+    suite = normalize_cipher_suite(cipher_suite)
+    if suite is not None:
+        kwargs["cipher_suite"] = suite
+    if kg_key:
+        kwargs["kg"] = bytes.fromhex(kg_key)
+    return _NATIVE_RMCPPLUS, kwargs
+
+
 def categorize_rmcp_sensor(
     sensor_type_code: int | None,
     units_2: int | None,

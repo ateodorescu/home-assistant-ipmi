@@ -253,6 +253,59 @@ class TestAddonActionSucceeded:
         assert util.addon_action_succeeded(None) is False
 
 
+_LEGACY_RMCP_KWARGS = {
+    "slave_address": 0x81,
+    "host_target_address": 0x20,
+    "keep_alive_interval": 0,
+}
+
+
+class TestNativeInterfaceArgs:
+
+    @pytest.mark.parametrize("protocol", [None, "", "rmcp", "RMCP", "unknown"])
+    def test_default_is_unchanged_ipmi_15(self, protocol) -> None:
+        assert util.native_interface_args(protocol) == ("rmcp", _LEGACY_RMCP_KWARGS)
+
+    def test_ipmi_15_ignores_cipher_suite_and_kg(self) -> None:
+        assert util.native_interface_args("rmcp", "3", "ABCD") == (
+            "rmcp",
+            _LEGACY_RMCP_KWARGS,
+        )
+
+    def test_rmcpplus_auto_leaves_cipher_to_python_ipmi(self) -> None:
+        name, kwargs = util.native_interface_args("rmcpplus", "auto")
+        assert name == "rmcpplus"
+        assert kwargs == _LEGACY_RMCP_KWARGS
+
+    def test_rmcpplus_fixed_cipher_suite(self) -> None:
+        name, kwargs = util.native_interface_args("rmcpplus", "3")
+        assert name == "rmcpplus"
+        assert kwargs == {**_LEGACY_RMCP_KWARGS, "cipher_suite": 3}
+
+    def test_rmcpplus_passes_kg_as_bytes(self) -> None:
+        _, kwargs = util.native_interface_args("rmcpplus", None, "0A0B")
+        assert kwargs["kg"] == b"\x0a\x0b"
+
+    def test_rmcpplus_without_kg_omits_it(self) -> None:
+        _, kwargs = util.native_interface_args("rmcpplus", None, "")
+        assert "kg" not in kwargs
+
+
+class TestNormalizeCipherSuite:
+    @pytest.mark.parametrize("value", [None, "", "auto", "AUTO", " auto "])
+    def test_auto_values(self, value) -> None:
+        assert util.normalize_cipher_suite(value) is None
+
+    @pytest.mark.parametrize("value,expected", [("3", 3), (17, 17), (" 1 ", 1)])
+    def test_fixed_values(self, value, expected) -> None:
+        assert util.normalize_cipher_suite(value) == expected
+
+    @pytest.mark.parametrize("value", ["0", "4", "18", "abc"])
+    def test_invalid_values_raise(self, value) -> None:
+        with pytest.raises(ValueError):
+            util.normalize_cipher_suite(value)
+
+
 class TestIpmiServerLogic:
     """Lightweight tests for server helpers without a live BMC / Home Assistant."""
 
@@ -333,6 +386,63 @@ class TestIpmiServerLogic:
         }
         connection.update(overrides)
         return self._server_mod.IpmiServer(MagicMock(), "entry1", connection)
+
+    def _connect_with_mocks(self, srv):
+        interfaces = self._server_mod.pyipmi.interfaces
+        with (
+            patch.object(interfaces, "create_interface") as create_interface,
+            patch.object(self._server_mod.pyipmi, "create_connection") as create_conn,
+        ):
+            ipmi = srv._connect_unlocked()
+        return create_interface, create_conn, ipmi
+
+    def test_connect_default_uses_ipmi_15_as_before(self) -> None:
+        srv = self._make_server()
+        create_interface, _, ipmi = self._connect_with_mocks(srv)
+        create_interface.assert_called_once_with(
+            "rmcp", slave_address=0x81, host_target_address=0x20, keep_alive_interval=0
+        )
+        ipmi.session.set_session_type_rmcp.assert_called_once_with("192.0.2.1", 623)
+        ipmi.session.set_auth_type_user.assert_called_once_with("admin", "secret")
+        ipmi.session.set_priv_level.assert_called_once_with("ADMINISTRATOR")
+        ipmi.open.assert_called_once()
+
+    def test_connect_rmcpplus_with_cipher_suite(self) -> None:
+        srv = self._make_server(
+            native_protocol="rmcpplus",
+            native_cipher_suite="3",
+            privilege_level="USER",
+        )
+        create_interface, _, ipmi = self._connect_with_mocks(srv)
+        create_interface.assert_called_once_with(
+            "rmcpplus",
+            slave_address=0x81,
+            host_target_address=0x20,
+            keep_alive_interval=0,
+            cipher_suite=3,
+        )
+        ipmi.session.set_priv_level.assert_called_once_with("USER")
+
+    def test_connect_rmcpplus_passes_kg_without_warning(self, caplog) -> None:
+        srv = self._make_server(native_protocol="rmcpplus", kg_key="0A0B")
+        with caplog.at_level("WARNING"):
+            create_interface, _, _ = self._connect_with_mocks(srv)
+        assert create_interface.call_args.kwargs["kg"] == b"\x0a\x0b"
+        assert "Kg key" not in caplog.text
+
+    def test_connect_ipmi_15_warns_about_kg(self, caplog) -> None:
+        srv = self._make_server(kg_key="0A0B")
+        with caplog.at_level("WARNING"):
+            create_interface, _, _ = self._connect_with_mocks(srv)
+        assert "kg" not in create_interface.call_args.kwargs
+        assert "Kg key" in caplog.text
+
+    def test_python_ipmi_builds_rmcpplus_interface(self) -> None:
+        """The installed python-ipmi accepts the arguments we build (no network)."""
+        name, kwargs = self._server_mod.native_interface_args("rmcpplus", "3", "0A0B")
+        interface = self._server_mod.pyipmi.interfaces.create_interface(name, **kwargs)
+        assert interface.cipher_suites == (3,)
+        assert interface.kg == b"\x0a\x0b"
 
     def test_rmcp_preference_skips_addon(self) -> None:
         srv = self._make_server(backend_preference="rmcp")

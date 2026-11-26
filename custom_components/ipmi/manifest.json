@@ -11,7 +11,7 @@
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/ateodorescu/home-assistant-ipmi/issues",
   "requirements": [
-    "python-ipmi>=0.5.8"
+    "python-ipmi>=0.6.1"
   ],
   "version": "1.22.3",
   "zeroconf": [

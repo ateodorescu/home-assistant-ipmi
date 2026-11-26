@@ -38,6 +38,8 @@ from .const import (
     CONF_POWER_OFF_DELAY,
     CONF_IPMI_SERVER_HOST,
     CONF_KG_KEY,
+    CONF_NATIVE_CIPHER_SUITE,
+    CONF_NATIVE_PROTOCOL,
     CONF_PRIVILEGE_LEVEL,
     CONF_SENSOR_TYPES,
     DEFAULT_ADDON_PORT,
@@ -51,6 +53,8 @@ from .const import (
     DEFAULT_INTERFACE_TYPE,
     DEFAULT_IPMI_SERVER_HOST,
     DEFAULT_KG_KEY,
+    DEFAULT_NATIVE_CIPHER_SUITE,
+    DEFAULT_NATIVE_PROTOCOL,
     DEFAULT_PASSWORD,
     DEFAULT_PORT,
     DEFAULT_PRIVILEGE_LEVEL,
@@ -59,6 +63,8 @@ from .const import (
     DEFAULT_USERNAME,
     DOMAIN,
     BACKEND_PREFERENCES,
+    NATIVE_CIPHER_SUITES,
+    NATIVE_PROTOCOLS,
     PRIVILEGE_LEVELS,
     SENSOR_TYPES,
 )
@@ -97,6 +103,30 @@ _PRIVILEGE_LEVEL_SELECTOR = vol.All(
     selector.SelectSelector(
         selector.SelectSelectorConfig(
             options=PRIVILEGE_LEVELS, multiple=False, mode="dropdown"
+        ),
+    ),
+    vol.Coerce(str),
+)
+
+_NATIVE_PROTOCOL_SELECTOR = vol.All(
+    selector.SelectSelector(
+        selector.SelectSelectorConfig(
+            options=NATIVE_PROTOCOLS,
+            multiple=False,
+            mode="dropdown",
+            translation_key=CONF_NATIVE_PROTOCOL,
+        ),
+    ),
+    vol.Coerce(str),
+)
+
+_NATIVE_CIPHER_SUITE_SELECTOR = vol.All(
+    selector.SelectSelector(
+        selector.SelectSelectorConfig(
+            options=NATIVE_CIPHER_SUITES,
+            multiple=False,
+            mode="dropdown",
+            translation_key=CONF_NATIVE_CIPHER_SUITE,
         ),
     ),
     vol.Coerce(str),
@@ -213,6 +243,16 @@ def _advanced_schema(
                 CONF_PRIVILEGE_LEVEL,
                 default=defaults.get(CONF_PRIVILEGE_LEVEL, DEFAULT_PRIVILEGE_LEVEL),
             ): _PRIVILEGE_LEVEL_SELECTOR,
+            vol.Optional(
+                CONF_NATIVE_PROTOCOL,
+                default=defaults.get(CONF_NATIVE_PROTOCOL, DEFAULT_NATIVE_PROTOCOL),
+            ): _NATIVE_PROTOCOL_SELECTOR,
+            vol.Optional(
+                CONF_NATIVE_CIPHER_SUITE,
+                default=str(
+                    defaults.get(CONF_NATIVE_CIPHER_SUITE, DEFAULT_NATIVE_CIPHER_SUITE)
+                ),
+            ): _NATIVE_CIPHER_SUITE_SELECTOR,
             vol.Optional(CONF_KG_KEY, default=defaults.get(CONF_KG_KEY, DEFAULT_KG_KEY)): (
                 cv.string
             ),
@@ -306,6 +346,8 @@ def _advanced_defaults() -> dict[str, Any]:
     return {
         CONF_KG_KEY: DEFAULT_KG_KEY,
         CONF_PRIVILEGE_LEVEL: DEFAULT_PRIVILEGE_LEVEL,
+        CONF_NATIVE_PROTOCOL: DEFAULT_NATIVE_PROTOCOL,
+        CONF_NATIVE_CIPHER_SUITE: DEFAULT_NATIVE_CIPHER_SUITE,
         CONF_IPMI_SERVER_HOST: DEFAULT_IPMI_SERVER_HOST,
         CONF_ADDON_PORT: str(DEFAULT_ADDON_PORT),
         CONF_ADDON_INTERFACE: DEFAULT_INTERFACE_TYPE,
@@ -362,6 +404,12 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
             "password": data.get(CONF_PASSWORD),
             "kg_key": data.get(CONF_KG_KEY),
             "privilege_level": data.get(CONF_PRIVILEGE_LEVEL),
+            CONF_NATIVE_PROTOCOL: data.get(
+                CONF_NATIVE_PROTOCOL, DEFAULT_NATIVE_PROTOCOL
+            ),
+            CONF_NATIVE_CIPHER_SUITE: data.get(
+                CONF_NATIVE_CIPHER_SUITE, DEFAULT_NATIVE_CIPHER_SUITE
+            ),
             "ipmi_server_host": data.get(CONF_IPMI_SERVER_HOST),
             "addon_port": data.get(CONF_ADDON_PORT),
             "addon_interface": data.get(CONF_ADDON_INTERFACE),
@@ -395,7 +443,7 @@ class IpmiConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for IPMI."""
 
     VERSION = 2
-    MINOR_VERSION = 9
+    MINOR_VERSION = 10
 
     def __init__(self) -> None:
         """Initialize the ipmi config flow."""

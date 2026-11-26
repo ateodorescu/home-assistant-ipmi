@@ -28,6 +28,20 @@ DEFAULT_KG_KEY = ""
 CONF_PRIVILEGE_LEVEL = "privilege_level"
 DEFAULT_PRIVILEGE_LEVEL = "ADMINISTRATOR"
 PRIVILEGE_LEVELS = ["ADMINISTRATOR", "OPERATOR", "USER"]
+
+# Native (python-ipmi) LAN protocol. Missing key = IPMI 1.5 (rmcp), the
+# historical hard-coded behavior. Does not affect the addon / ipmitool path.
+CONF_NATIVE_PROTOCOL = "native_protocol"
+NATIVE_PROTOCOL_RMCP = "rmcp"  # IPMI 1.5
+NATIVE_PROTOCOL_RMCPPLUS = "rmcpplus"  # IPMI 2.0 (RMCP+)
+DEFAULT_NATIVE_PROTOCOL = NATIVE_PROTOCOL_RMCP
+NATIVE_PROTOCOLS = [NATIVE_PROTOCOL_RMCP, NATIVE_PROTOCOL_RMCPPLUS]
+
+# RMCP+ cipher suite for the native path ("auto" = python-ipmi default: 17, then 3).
+CONF_NATIVE_CIPHER_SUITE = "native_cipher_suite"
+NATIVE_CIPHER_SUITE_AUTO = "auto"
+DEFAULT_NATIVE_CIPHER_SUITE = NATIVE_CIPHER_SUITE_AUTO
+NATIVE_CIPHER_SUITES = [NATIVE_CIPHER_SUITE_AUTO, "1", "2", "3", "15", "16", "17"]
 DEFAULT_ADDON_PORT = 9595
 DEFAULT_INTERFACE_TYPE = "lanplus"
 DEFAULT_TIMEOUT = 60

@@ -27,11 +27,16 @@ from .const import (
     BACKEND_PREFERENCE_RMCP,
     BACKEND_RMCP,
     CONF_IGNORE_CHECKSUM_ERRORS,
+    CONF_NATIVE_CIPHER_SUITE,
+    CONF_NATIVE_PROTOCOL,
     DEFAULT_BACKEND_PREFERENCE,
     DEFAULT_HTTP_CONNECT_TIMEOUT,
     DEFAULT_HTTP_TIMEOUT,
+    DEFAULT_NATIVE_CIPHER_SUITE,
+    DEFAULT_NATIVE_PROTOCOL,
     DEFAULT_SENSOR_TYPES,
     IPMI_NEW_SENSOR_SIGNAL,
+    NATIVE_PROTOCOL_RMCPPLUS,
     SENSOR_TYPES,
 )
 from .util import (
@@ -43,6 +48,7 @@ from .util import (
     IpmiChassisCommandError,
     iter_discovered_sensor_ids,
     looks_like_auth_error,
+    native_interface_args,
     normalize_addon_mapping,
     normalize_addon_sensor_groups,
     power_only_poll,
@@ -97,6 +103,12 @@ class IpmiServer:
         self._password = connection_data.get("password")
         self._kg_key = connection_data.get("kg_key")
         self._privilege_level = connection_data.get("privilege_level")
+        self._native_protocol = connection_data.get(
+            CONF_NATIVE_PROTOCOL, DEFAULT_NATIVE_PROTOCOL
+        )
+        self._native_cipher_suite = connection_data.get(
+            CONF_NATIVE_CIPHER_SUITE, DEFAULT_NATIVE_CIPHER_SUITE
+        )
         self._addon_url = (
             f"{connection_data.get('ipmi_server_host')}:"
             f"{connection_data.get('addon_port')}"
@@ -622,8 +634,11 @@ class IpmiServer:
         if self._rmcp_ipmi is not None:
             return self._rmcp_ipmi
 
+        interface_name, interface_kwargs = native_interface_args(
+            self._native_protocol, self._native_cipher_suite, self._kg_key
+        )
         interface = pyipmi.interfaces.create_interface(
-            "rmcp", slave_address=0x81, host_target_address=0x20, keep_alive_interval=0
+            interface_name, **interface_kwargs
         )
         ipmi = pyipmi.create_connection(interface)
         ipmi.session.set_session_type_rmcp(self._host, int(self._port))
@@ -631,12 +646,12 @@ class IpmiServer:
             self._username or "", self._password or ""
         )
 
-        # Note: python-ipmi library does not support Kg keys - only ipmi-server addon supports this
-        if self._kg_key:
+        # Kg keys are only used by RMCP+ (IPMI 2.0); IPMI 1.5 has no Kg.
+        if self._kg_key and interface_name != NATIVE_PROTOCOL_RMCPPLUS:
             _LOGGER.warning(
-                "Kg key specified but python-ipmi library does not support Kg key "
-                "authentication. Kg key will be ignored. Consider using the "
-                "ipmi-server addon for full feature support."
+                "Kg key specified but the python-ipmi connection uses IPMI 1.5, "
+                "which does not support Kg keys. Kg key will be ignored. Select "
+                "IPMI 2.0 (RMCP+) as the IPMI protocol or use the ipmi-server addon."
             )
 
         if self._privilege_level:
